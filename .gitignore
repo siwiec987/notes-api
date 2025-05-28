@@ -1,0 +1,34 @@
+# Pliki wykonywalne Go
+*.exe
+*.out
+
+# Binarka w katalogu bin/
+bin/
+
+# Pliki konfiguracyjne środowiska
+.env
+.air.toml
+
+# Cache zależności (opcjonalnie)
+go.sum
+
+# Edytory/IDE
+.vscode/
+.idea/
+
+# Systemowe
+.DS_Store
+Thumbs.db
+
+# Docker - lokalne pliki pomocnicze (jeśli je kiedyś dodasz)
+docker-compose.override.yml
+
+# Pliki tymczasowe/robocze
+*.log
+*.swp
+*.swo
+tmp/
+
+#Air
+**/pre_cmd.txt
+**/post_cmd.txt

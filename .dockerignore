@@ -1,0 +1,27 @@
+# Ignoruj binaria (output go build)
+app
+*.exe
+*.out
+*.test
+
+# Ignoruj katalogi zależności i cache
+vendor/
+node_modules/
+.tmp/
+.cache/
+
+# Ignoruj IDE/edytorów
+.vscode/
+.idea/
+*.swp
+
+# Ignoruj pliki tymczasowe i systemowe
+*.log
+*.env
+.env.*
+.DS_Store
+Thumbs.db
+
+# Ignoruj Git
+.git
+.gitignore
