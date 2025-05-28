@@ -15,6 +15,11 @@ type LoginRequest struct {
 	Password string `json:"password"`
 }
 
+type NotePostRequest struct {
+	Content    string `json:"content"`
+	CategoryID int    `json:"category_id"`
+}
+
 type Note struct {
 	ID         int       `json:"id"`
 	Content    string    `json:"content"`

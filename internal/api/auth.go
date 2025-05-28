@@ -3,6 +3,7 @@ package api
 import (
 	"context"
 	"errors"
+	"log"
 	"net/http"
 	"os"
 	"strings"
@@ -19,10 +20,18 @@ type Claims struct {
 type contextKey string
 const userKey contextKey = "user_id"
 
-var jwtKey = []byte(os.Getenv("JWT_SECRET"))
+var jwtKey []byte
+
+func init() {
+	key := os.Getenv("JWT_SECRET")
+	if key == "" {
+		log.Fatal("JWT_SECRET not set!")
+	}
+	jwtKey = []byte(key)
+}
 
 func generateToken(userID int) (string, error) {
-	expirationTime := time.Now().Add(15 * time.Minute)
+	expirationTime := time.Now().Add(15 * time.Hour)
 
 	claims := &Claims {
 		UserID: userID,
