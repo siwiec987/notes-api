@@ -11,10 +11,11 @@ services:
         condition: service_healthy
     volumes:
       - .:/app 
-    # command: air -c .air.toml
 
   db:
     image: mysql:8
+    ports:
+    - "3307:3306"
     restart: always
     environment:
       MYSQL_DATABASE: ${DB_NAME}
@@ -25,9 +26,9 @@ services:
       - mysql_data:/var/lib/mysql
     healthcheck:
       test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u${DB_USER}", "-p${DB_PASS}"]
-      interval: 10s
+      interval: 1s
       timeout: 5s
-      retries: 5
+      retries: 10
 
 volumes:
   mysql_data:
