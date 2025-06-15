@@ -28,9 +28,18 @@ func (s *APIServer) Run() {
 
 	router.HandleFunc("POST /register", s.handleRegister)
 	router.HandleFunc("POST /login", s.handleLogin)
-	router.HandleFunc("POST /notes", authMiddleware(s.handlePostNotes))
+
 	router.HandleFunc("GET /notes", authMiddleware(s.handleGetNotes))
-	router.HandleFunc("DELETE /notes/{id}", authMiddleware(s.handleDeleteNotes))
+	router.HandleFunc("POST /notes", authMiddleware(s.handlePostNotes))
+	router.HandleFunc("PATCH /notes", authMiddleware(s.handlePatchNotes))
+	router.HandleFunc("DELETE /notes", authMiddleware(s.handleDeleteNotes))
+	// router.HandleFunc("Get /notes", authMiddleware(s.handleSearchNotes)) wyszukiwanie
+
+	router.HandleFunc("GET /categories", authMiddleware(s.handleGetCategories))
+	router.HandleFunc("POST /categories", authMiddleware(s.handlePostCategories))
+	router.HandleFunc("DELETE /categories", authMiddleware(s.handleDeleteCategories))
+	router.HandleFunc("PATCH /categories", authMiddleware(s.handlePatchCategories))
+
 	router.HandleFunc("/seed", s.handleSeed)
 
 	log.Println("Running on port:", s.addr)
@@ -48,5 +57,6 @@ func sendResponse(w http.ResponseWriter, status int, v any) {
 }
 
 func sendError(w http.ResponseWriter, status int, msg string) {
+	log.Printf("ERROR %d: %s", status, msg)
 	sendResponse(w, status, ErrorResponse{Error: msg})
 }

@@ -20,12 +20,30 @@ type NotePostRequest struct {
 	CategoryID int    `json:"category_id"`
 }
 
+type NotePatchRequest struct {
+	ID         int     `json:"id"`
+	Content    *string `json:"content"`
+	CategoryID *int    `json:"category_id"`
+}
+
 type Note struct {
-	ID         int       `json:"id"`
-	Content    string    `json:"content"`
-	CreatedAt  time.Time `json:"created_at"`
-	Category  struct {
-		ID   int    `json:"id"`
-		Name string `json:"name"`
-	} `json:"category"`
+	ID        int       `json:"id"`
+	Content   string    `json:"content"`
+	CreatedAt time.Time `json:"created_at"`
+	UpdatedAt time.Time `json:"updated_at"`
+	Category  Category  `json:"category"`
+}
+
+type Category struct {
+	ID   int    `json:"id"`
+	Name string `json:"name"`
+}
+
+type CategoryPostRequest struct {
+	Name string `json:"name"`
+}
+
+type CategoryPatchRequest struct {
+	ID	 int	 `json:"id"`
+	Name *string `json:"name"`
 }
