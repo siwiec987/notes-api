@@ -13,6 +13,7 @@ func main() {
 	if err != nil {
 		log.Fatal("Unable to connect to database: ", err)
 	}
+	
 	err = database.DBInit(db)
 	if err != nil {
 		log.Fatal("Unable to initialize database: ", err)
