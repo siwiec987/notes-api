@@ -19,6 +19,8 @@ func InitializeTables(db *sql.DB) error {
         CREATE TABLE IF NOT EXISTS categories (
             id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
             name VARCHAR(50) UNIQUE NOT NULL,
+            created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+            updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
             user_id INT UNSIGNED NOT NULL,
             FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
         );
