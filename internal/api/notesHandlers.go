@@ -6,18 +6,12 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
-	"time"
 
 	"github.com/siwiec987/notes-api/internal/models"
 )
 
 func (s *APIServer) handleGetNotes(w http.ResponseWriter, r *http.Request) {
-	val := r.Context().Value(userKey)
-	userID, ok := val.(int)
-	if !ok {
-		sendError(w, http.StatusUnauthorized, "User not authenticated")
-		return
-	}
+	userID := getUserID(r)
 
 	content := strings.ToLower(r.URL.Query().Get("content"))
 	categoryIDStr := r.URL.Query().Get("category_id")
@@ -129,13 +123,7 @@ func (s *APIServer) handleGetNotes(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *APIServer) handlePostNotes(w http.ResponseWriter, r *http.Request) {
-	val := r.Context().Value(userKey)
-	userID, ok := val.(int)
-	if !ok {
-		sendError(w, http.StatusUnauthorized, "User not authenticated")
-		return
-	}
-
+	userID := getUserID(r)
 	var notes []models.NotePostRequest
 	err := json.NewDecoder(r.Body).Decode(&notes)
 	if err != nil {
@@ -179,12 +167,7 @@ func (s *APIServer) handlePostNotes(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *APIServer) handleDeleteNotes(w http.ResponseWriter, r *http.Request) {
-	val := r.Context().Value(userKey)
-	userID, ok := val.(int)
-	if !ok {
-		sendError(w, http.StatusUnauthorized, "User not authenticated")
-		return
-	}
+	userID := getUserID(r)
 
 	var noteIDs []int
 	err := json.NewDecoder(r.Body).Decode(&noteIDs)
@@ -250,12 +233,7 @@ func (s *APIServer) handleDeleteNotes(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *APIServer) handlePatchNotes(w http.ResponseWriter, r *http.Request) {
-	val := r.Context().Value(userKey)
-	userID, ok := val.(int)
-	if !ok {
-		sendError(w, http.StatusUnauthorized, "User not authenticated")
-		return
-	}
+	userID := getUserID(r)
 
 	var notes []models.NotePatchRequest
 	err := json.NewDecoder(r.Body).Decode(&notes)
@@ -353,10 +331,3 @@ func (s *APIServer) doNotesExist(userID int, noteIDs []int) (bool, error) {
 	err := s.db.QueryRow(queryCheck, args...).Scan(&count)
 	return count == len(noteIDs), err
 } 
-
-func isDateCorrect(s string) bool {
-	date, err := time.Parse("2006-01-02 15:04", s)
-	fmt.Println(date)
-	fmt.Println(err)
-	return err == nil
-}

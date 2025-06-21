@@ -4,24 +4,88 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"strconv"
 	"strings"
 
 	"github.com/siwiec987/notes-api/internal/models"
 )
 
 func (s *APIServer) handleGetCategories(w http.ResponseWriter, r *http.Request) {
-	val := r.Context().Value(userKey)
-	userID, ok := val.(int)
-	if !ok {
-		sendError(w, http.StatusUnauthorized, "User not authenticated")
-		return
+	userID := getUserID(r)
+
+	name := strings.ToLower(r.URL.Query().Get("name"))
+	createdAtStart := r.URL.Query().Get("created_at_start")
+	createdAtEnd := r.URL.Query().Get("created_at_end")
+	updatedAtStart := r.URL.Query().Get("updated_at_start")
+	updatedAtEnd := r.URL.Query().Get("updated_at_end")
+	limitStr := r.URL.Query().Get("limit")
+	offsetStr := r.URL.Query().Get("offset")
+
+	query := `
+		SELECT id, name
+		FROM categories
+		WHERE user_id = ?
+	`
+
+	var args []any
+	args = append(args, userID)
+	if name != "" {
+		name = "%" + name + "%"
+		args = append(args, name)
+		query += " AND name LIKE ?"
+	}
+	if createdAtStart != "" {
+		if !isDateCorrect(createdAtStart) {
+			sendError(w, http.StatusBadRequest, "Invalid date format")
+			return
+		}
+		args = append(args, createdAtStart)
+		query += " AND created_at >= ?"
+	}
+	if createdAtEnd != "" {
+		if !isDateCorrect(createdAtEnd) {
+			sendError(w, http.StatusBadRequest, "Invalid date format")
+			return
+		}
+		args = append(args, createdAtEnd)
+		query += " AND created_at <= ?"
+	}
+	if updatedAtStart != "" {
+		if !isDateCorrect(updatedAtStart) {
+			sendError(w, http.StatusBadRequest, "Invalid date format")
+			return
+		}
+		args = append(args, updatedAtStart)
+		query += " AND updated_at >= ?"
+	}
+	if updatedAtEnd != "" {
+		if !isDateCorrect(updatedAtEnd) {
+			sendError(w, http.StatusBadRequest, "Invalid date format")
+			return
+		}
+		args = append(args, updatedAtEnd)
+		query += " AND updated_at <= ?"
 	}
 
-	rows, err := s.db.Query(
-		`SELECT id, name
-		FROM categories
-		WHERE user_id = ?`,
-		userID)
+	limit := 20
+	if limitStr != "" {
+		parsed, err := strconv.Atoi(limitStr)
+		if err == nil && parsed > 0 {
+			limit = parsed
+		}
+	}
+	args = append(args, limit)
+	query += " LIMIT ?"
+	
+	if offsetStr != "" {
+		offset, err := strconv.Atoi(offsetStr)
+		if err == nil && offset > 0{
+			args = append(args, offset)
+			query += " OFFSET ?"
+		}
+	}
+
+	rows, err := s.db.Query(query, args...)
 	if err != nil {
 		sendError(w, http.StatusInternalServerError, "Failed to fetch categories")
 		return
@@ -49,12 +113,7 @@ func (s *APIServer) handleGetCategories(w http.ResponseWriter, r *http.Request) 
 }
 
 func (s *APIServer) handlePostCategories(w http.ResponseWriter, r *http.Request) {
-	val := r.Context().Value(userKey)
-	userID, ok := val.(int)
-	if !ok {
-		sendError(w, http.StatusUnauthorized, "User not authenticated")
-		return
-	}
+	userID := getUserID(r)
 
 	var categories []models.CategoryPostRequest
 	err := json.NewDecoder(r.Body).Decode(&categories)
@@ -99,12 +158,7 @@ func (s *APIServer) handlePostCategories(w http.ResponseWriter, r *http.Request)
 }
 
 func (s *APIServer) handleDeleteCategories(w http.ResponseWriter, r *http.Request) {
-	val := r.Context().Value(userKey)
-	userID, ok := val.(int)
-	if !ok {
-		sendError(w, http.StatusUnauthorized, "User not authenticated")
-		return
-	}
+	userID := getUserID(r)
 
 	var categoryIDs []int
 	err := json.NewDecoder(r.Body).Decode(&categoryIDs)
@@ -170,12 +224,7 @@ func (s *APIServer) handleDeleteCategories(w http.ResponseWriter, r *http.Reques
 }
 
 func (s *APIServer) handlePatchCategories(w http.ResponseWriter, r *http.Request) {
-	val := r.Context().Value(userKey)
-	userID, ok := val.(int)
-	if !ok {
-		sendError(w, http.StatusUnauthorized, "User not authenticated")
-		return
-	}
+	userID := getUserID(r)
 
 	var categories []models.CategoryPatchRequest
 	err := json.NewDecoder(r.Body).Decode(&categories)

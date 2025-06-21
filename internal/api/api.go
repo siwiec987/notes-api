@@ -2,7 +2,6 @@ package api
 
 import (
 	"database/sql"
-	"encoding/json"
 	"log"
 	"net/http"
 )
@@ -33,7 +32,6 @@ func (s *APIServer) Run() {
 	router.HandleFunc("POST /notes", authMiddleware(s.handlePostNotes))
 	router.HandleFunc("PATCH /notes", authMiddleware(s.handlePatchNotes))
 	router.HandleFunc("DELETE /notes", authMiddleware(s.handleDeleteNotes))
-	// router.HandleFunc("Get /notes", authMiddleware(s.handleSearchNotes)) wyszukiwanie
 
 	router.HandleFunc("GET /categories", authMiddleware(s.handleGetCategories))
 	router.HandleFunc("POST /categories", authMiddleware(s.handlePostCategories))
@@ -45,18 +43,4 @@ func (s *APIServer) Run() {
 	log.Println("Running on port:", s.addr)
 
 	http.ListenAndServe(s.addr, router)
-}
-
-func sendResponse(w http.ResponseWriter, status int, v any) {
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(status)
-	err := json.NewEncoder(w).Encode(v)
-	if err != nil {
-		log.Println("Error encoding response:", err)
-	}
-}
-
-func sendError(w http.ResponseWriter, status int, msg string) {
-	log.Printf("ERROR %d: %s", status, msg)
-	sendResponse(w, status, ErrorResponse{Error: msg})
 }
