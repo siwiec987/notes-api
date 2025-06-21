@@ -4,7 +4,9 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"strconv"
 	"strings"
+	"time"
 
 	"github.com/siwiec987/notes-api/internal/models"
 )
@@ -17,12 +19,89 @@ func (s *APIServer) handleGetNotes(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	rows, err := s.db.Query(
-		`SELECT n.id, n.content, n.created_at, n.updated_at, n.category_id, c.name as category_name 
+	content := strings.ToLower(r.URL.Query().Get("content"))
+	categoryIDStr := r.URL.Query().Get("category_id")
+	createdAtStart := r.URL.Query().Get("created_at_start")
+	createdAtEnd := r.URL.Query().Get("created_at_end")
+	updatedAtStart := r.URL.Query().Get("updated_at_start")
+	updatedAtEnd := r.URL.Query().Get("updated_at_end")
+	limitStr := r.URL.Query().Get("limit")
+	offsetStr := r.URL.Query().Get("offset")
+
+	query := `
+		SELECT n.id, n.content, n.created_at, n.updated_at, n.category_id, c.name as category_name 
 		FROM notes n
 		JOIN categories c ON n.category_id = c.id 
-		WHERE n.user_id = ?`, 
-		userID)
+		WHERE n.user_id = ?
+	`
+	var args []any
+	args = append(args, userID)
+	if content != "" {
+		content = "%" + content + "%"
+		args = append(args, content)
+		query += " AND n.content LIKE ?"
+	}
+	if categoryIDStr != "" {
+		categoryID, err := strconv.Atoi(categoryIDStr)
+		if err != nil {
+			sendError(w, http.StatusBadRequest, "Invalid category_id")
+			return
+		}
+		args = append(args, categoryID)
+		query += " AND n.category_id = ?"
+	}
+	if createdAtStart != "" {
+		if !isDateCorrect(createdAtStart) {
+			sendError(w, http.StatusBadRequest, "Invalid date format")
+			return
+		}
+		args = append(args, createdAtStart)
+		query += " AND n.created_at >= ?"
+	}
+	if createdAtEnd != "" {
+		if !isDateCorrect(createdAtEnd) {
+			sendError(w, http.StatusBadRequest, "Invalid date format")
+			return
+		}
+		args = append(args, createdAtEnd)
+		query += " AND n.created_at <= ?"
+	}
+	if updatedAtStart != "" {
+		if !isDateCorrect(updatedAtStart) {
+			sendError(w, http.StatusBadRequest, "Invalid date format")
+			return
+		}
+		args = append(args, updatedAtStart)
+		query += " AND n.updated_at >= ?"
+	}
+	if updatedAtEnd != "" {
+		if !isDateCorrect(updatedAtEnd) {
+			sendError(w, http.StatusBadRequest, "Invalid date format")
+			return
+		}
+		args = append(args, updatedAtEnd)
+		query += " AND n.updated_at <= ?"
+	}
+
+	limit := 20
+	if limitStr != "" {
+		parsed, err := strconv.Atoi(limitStr)
+		if err == nil && parsed > 0 {
+			limit = parsed
+		}
+	}
+	args = append(args, limit)
+	query += " LIMIT ?"
+	
+	if offsetStr != "" {
+		offset, err := strconv.Atoi(offsetStr)
+		if err == nil && offset > 0{
+			args = append(args, offset)
+			query += " OFFSET ?"
+		}
+	}
+
+	rows, err := s.db.Query(query, args...)
 	if err != nil {
 		sendError(w, http.StatusInternalServerError, "Failed to fetch notes")
 		return
@@ -273,4 +352,11 @@ func (s *APIServer) doNotesExist(userID int, noteIDs []int) (bool, error) {
 	var count int
 	err := s.db.QueryRow(queryCheck, args...).Scan(&count)
 	return count == len(noteIDs), err
+} 
+
+func isDateCorrect(s string) bool {
+	date, err := time.Parse("2006-01-02 15:04", s)
+	fmt.Println(date)
+	fmt.Println(err)
+	return err == nil
 }
