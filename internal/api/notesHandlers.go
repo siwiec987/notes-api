@@ -38,7 +38,7 @@ func (s *APIServer) handleGetNotes(w http.ResponseWriter, r *http.Request) {
 	if categoryIDStr != "" {
 		categoryID, err := strconv.Atoi(categoryIDStr)
 		if err != nil {
-			sendError(w, http.StatusBadRequest, "Invalid category_id")
+			sendError(w, http.StatusBadRequest, "invalid category_id")
 			return
 		}
 		args = append(args, categoryID)
@@ -46,7 +46,7 @@ func (s *APIServer) handleGetNotes(w http.ResponseWriter, r *http.Request) {
 	}
 	if createdAtStart != "" {
 		if !isDateCorrect(createdAtStart) {
-			sendError(w, http.StatusBadRequest, "Invalid date format")
+			sendError(w, http.StatusBadRequest, "invalid date format")
 			return
 		}
 		args = append(args, createdAtStart)
@@ -54,7 +54,7 @@ func (s *APIServer) handleGetNotes(w http.ResponseWriter, r *http.Request) {
 	}
 	if createdAtEnd != "" {
 		if !isDateCorrect(createdAtEnd) {
-			sendError(w, http.StatusBadRequest, "Invalid date format")
+			sendError(w, http.StatusBadRequest, "invalid date format")
 			return
 		}
 		args = append(args, createdAtEnd)
@@ -62,7 +62,7 @@ func (s *APIServer) handleGetNotes(w http.ResponseWriter, r *http.Request) {
 	}
 	if updatedAtStart != "" {
 		if !isDateCorrect(updatedAtStart) {
-			sendError(w, http.StatusBadRequest, "Invalid date format")
+			sendError(w, http.StatusBadRequest, "invalid date format")
 			return
 		}
 		args = append(args, updatedAtStart)
@@ -70,7 +70,7 @@ func (s *APIServer) handleGetNotes(w http.ResponseWriter, r *http.Request) {
 	}
 	if updatedAtEnd != "" {
 		if !isDateCorrect(updatedAtEnd) {
-			sendError(w, http.StatusBadRequest, "Invalid date format")
+			sendError(w, http.StatusBadRequest, "invalid date format")
 			return
 		}
 		args = append(args, updatedAtEnd)
@@ -97,7 +97,7 @@ func (s *APIServer) handleGetNotes(w http.ResponseWriter, r *http.Request) {
 
 	rows, err := s.db.Query(query, args...)
 	if err != nil {
-		sendError(w, http.StatusInternalServerError, "Failed to fetch notes")
+		sendError(w, http.StatusInternalServerError, "failed to fetch notes")
 		return
 	}
 	defer rows.Close()
@@ -107,7 +107,7 @@ func (s *APIServer) handleGetNotes(w http.ResponseWriter, r *http.Request) {
 		var note models.Note
 		err := rows.Scan(&note.ID, &note.Content, &note.CreatedAt, &note.UpdatedAt, &note.Category.ID, &note.Category.Name)
 		if err != nil {
-			sendError(w, http.StatusInternalServerError, "Failed to fetch notes")
+			sendError(w, http.StatusInternalServerError, "failed to fetch notes")
 			return
 		}
 		notes = append(notes, note)
@@ -115,7 +115,7 @@ func (s *APIServer) handleGetNotes(w http.ResponseWriter, r *http.Request) {
 
 	err = rows.Err()
 	if err != nil {
-		sendError(w, http.StatusInternalServerError, "Error reading notes from database")
+		sendError(w, http.StatusInternalServerError, "error reading notes from database")
 		return
 	}
 
@@ -127,17 +127,17 @@ func (s *APIServer) handlePostNotes(w http.ResponseWriter, r *http.Request) {
 	var notes []models.NotePostRequest
 	err := json.NewDecoder(r.Body).Decode(&notes)
 	if err != nil {
-		sendError(w, http.StatusBadRequest, "Invalid request body")
+		sendError(w, http.StatusBadRequest, "invalid request body")
 		return
 	}
 	if len(notes) == 0 {
-		sendError(w, http.StatusBadRequest, "No notes provided")
+		sendError(w, http.StatusBadRequest, "no notes provided")
 		return
 	}
 
 	tx, err := s.db.Begin()
 	if err != nil {
-		sendError(w, http.StatusInternalServerError, "Failed to start transaction")
+		sendError(w, http.StatusInternalServerError, "failed to start transaction")
 		return
 	}
 	defer func() {
@@ -153,13 +153,13 @@ func (s *APIServer) handlePostNotes(w http.ResponseWriter, r *http.Request) {
 			VALUES (?, ? ,?)`, note.Content, note.CategoryID, userID)
 		if err != nil {
 			tx.Rollback()
-			sendError(w, http.StatusBadRequest, "Invalid note data")
+			sendError(w, http.StatusBadRequest, "invalid note data")
 			return
 		}
 	}
 
 	if err := tx.Commit(); err != nil {
-		sendError(w, http.StatusInternalServerError, "Failed to commit transaction")
+		sendError(w, http.StatusInternalServerError, "failed to commit transaction")
 		return
 	}
 
@@ -172,11 +172,11 @@ func (s *APIServer) handleDeleteNotes(w http.ResponseWriter, r *http.Request) {
 	var noteIDs []int
 	err := json.NewDecoder(r.Body).Decode(&noteIDs)
 	if err != nil {
-		sendError(w, http.StatusBadRequest, "Invalid request body")
+		sendError(w, http.StatusBadRequest, "invalid request body")
 		return
 	}
 	if len(noteIDs) == 0 {
-		sendError(w, http.StatusBadRequest, "No IDs provided")
+		sendError(w, http.StatusBadRequest, "no IDs provided")
 		return
 	}
 
@@ -190,11 +190,11 @@ func (s *APIServer) handleDeleteNotes(w http.ResponseWriter, r *http.Request) {
 
 	notesExist, err := s.doNotesExist(userID, noteIDs)
 	if err != nil {
-		sendError(w, http.StatusInternalServerError, "Failed to verify notes existence")
+		sendError(w, http.StatusInternalServerError, "failed to verify notes existence")
 		return
 	}
 	if !notesExist {
-		sendError(w, http.StatusNotFound, "One or more notes not found")
+		sendError(w, http.StatusNotFound, "one or more notes not found")
 		return
 	}
 
@@ -202,7 +202,7 @@ func (s *APIServer) handleDeleteNotes(w http.ResponseWriter, r *http.Request) {
 
 	tx, err := s.db.Begin()
 	if err != nil {
-		sendError(w, http.StatusInternalServerError, "Failed to start transaction")
+		sendError(w, http.StatusInternalServerError, "failed to start transaction")
 		return
 	}
 	defer func() {
@@ -215,18 +215,18 @@ func (s *APIServer) handleDeleteNotes(w http.ResponseWriter, r *http.Request) {
 	res, err := tx.Exec(query, args...)
 	if err != nil {
 		tx.Rollback()
-		sendError(w, http.StatusInternalServerError, "Failed to delete note(s)")
+		sendError(w, http.StatusInternalServerError, "failed to delete note(s)")
 		return
 	}
 
 	if err := tx.Commit(); err != nil {
-		sendError(w, http.StatusInternalServerError, "Failed to commit transaction")
+		sendError(w, http.StatusInternalServerError, "failed to commit transaction")
 		return
 	}
 
 	affected, err := res.RowsAffected()
 	if err != nil {
-		sendError(w, http.StatusInternalServerError, "Could not determine affected rows")
+		sendError(w, http.StatusInternalServerError, "could not determine affected rows")
 		return
 	}
 	sendResponse(w, http.StatusOK, map[string]any { "deleted": affected })
@@ -238,11 +238,11 @@ func (s *APIServer) handlePatchNotes(w http.ResponseWriter, r *http.Request) {
 	var notes []models.NotePatchRequest
 	err := json.NewDecoder(r.Body).Decode(&notes)
 	if err != nil {
-		sendError(w, http.StatusBadRequest, "Invalid request body")
+		sendError(w, http.StatusBadRequest, "invalid request body")
 		return
 	}
 	if len(notes) == 0 {
-		sendError(w, http.StatusBadRequest, "No notes provided")
+		sendError(w, http.StatusBadRequest, "no notes provided")
 		return
 	}
 
@@ -253,17 +253,17 @@ func (s *APIServer) handlePatchNotes(w http.ResponseWriter, r *http.Request) {
 
 	exist, err := s.doNotesExist(userID, noteIDs)
 	if err != nil {
-		sendError(w, http.StatusInternalServerError, "Failed to verify notes existence")
+		sendError(w, http.StatusInternalServerError, "failed to verify notes existence")
 		return
 	}
 	if !exist {
-		sendError(w, http.StatusNotFound, "One or more notes not found")
+		sendError(w, http.StatusNotFound, "one or more notes not found")
 		return
 	}
 
 	tx, err := s.db.Begin()
 	if err != nil {
-		sendError(w, http.StatusInternalServerError, "Failed to start transaction")
+		sendError(w, http.StatusInternalServerError, "failed to start transaction")
 		return
 	}
 	defer func() {
@@ -301,13 +301,13 @@ func (s *APIServer) handlePatchNotes(w http.ResponseWriter, r *http.Request) {
 		_, err = tx.Exec(query, args...)
 		if err != nil {
 			tx.Rollback()
-			sendError(w, http.StatusInternalServerError, fmt.Sprintf("Failed to update note with id %d", note.ID))
+			sendError(w, http.StatusInternalServerError, fmt.Sprintf("failed to update note with id %d", note.ID))
 			return
 		}
 	}
 
 	if err := tx.Commit(); err != nil {
-		sendError(w, http.StatusInternalServerError, "Failed to commit transaction")
+		sendError(w, http.StatusInternalServerError, "failed to commit transaction")
 		return
 	}
 

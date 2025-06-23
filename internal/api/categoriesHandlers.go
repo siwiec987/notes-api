@@ -36,7 +36,7 @@ func (s *APIServer) handleGetCategories(w http.ResponseWriter, r *http.Request) 
 	}
 	if createdAtStart != "" {
 		if !isDateCorrect(createdAtStart) {
-			sendError(w, http.StatusBadRequest, "Invalid date format")
+			sendError(w, http.StatusBadRequest, "invalid date format")
 			return
 		}
 		args = append(args, createdAtStart)
@@ -44,7 +44,7 @@ func (s *APIServer) handleGetCategories(w http.ResponseWriter, r *http.Request) 
 	}
 	if createdAtEnd != "" {
 		if !isDateCorrect(createdAtEnd) {
-			sendError(w, http.StatusBadRequest, "Invalid date format")
+			sendError(w, http.StatusBadRequest, "invalid date format")
 			return
 		}
 		args = append(args, createdAtEnd)
@@ -52,7 +52,7 @@ func (s *APIServer) handleGetCategories(w http.ResponseWriter, r *http.Request) 
 	}
 	if updatedAtStart != "" {
 		if !isDateCorrect(updatedAtStart) {
-			sendError(w, http.StatusBadRequest, "Invalid date format")
+			sendError(w, http.StatusBadRequest, "invalid date format")
 			return
 		}
 		args = append(args, updatedAtStart)
@@ -60,7 +60,7 @@ func (s *APIServer) handleGetCategories(w http.ResponseWriter, r *http.Request) 
 	}
 	if updatedAtEnd != "" {
 		if !isDateCorrect(updatedAtEnd) {
-			sendError(w, http.StatusBadRequest, "Invalid date format")
+			sendError(w, http.StatusBadRequest, "invalid date format")
 			return
 		}
 		args = append(args, updatedAtEnd)
@@ -87,7 +87,7 @@ func (s *APIServer) handleGetCategories(w http.ResponseWriter, r *http.Request) 
 
 	rows, err := s.db.Query(query, args...)
 	if err != nil {
-		sendError(w, http.StatusInternalServerError, "Failed to fetch categories")
+		sendError(w, http.StatusInternalServerError, "failed to fetch categories")
 		return
 	}
 	defer rows.Close()
@@ -97,7 +97,7 @@ func (s *APIServer) handleGetCategories(w http.ResponseWriter, r *http.Request) 
 		var category models.Category
 		err := rows.Scan(&category.ID, &category.Name)
 		if err != nil {
-			sendError(w, http.StatusInternalServerError, "Failed to fetch categories")
+			sendError(w, http.StatusInternalServerError, "failed to fetch categories")
 			return
 		}
 		categories = append(categories, category)
@@ -105,7 +105,7 @@ func (s *APIServer) handleGetCategories(w http.ResponseWriter, r *http.Request) 
 
 	err = rows.Err()
 	if err != nil {
-		sendError(w, http.StatusInternalServerError, "Error reading categories from database")
+		sendError(w, http.StatusInternalServerError, "error reading categories from database")
 		return
 	}
 
@@ -118,17 +118,17 @@ func (s *APIServer) handlePostCategories(w http.ResponseWriter, r *http.Request)
 	var categories []models.CategoryPostRequest
 	err := json.NewDecoder(r.Body).Decode(&categories)
 	if err != nil {
-		sendError(w, http.StatusBadRequest, "Invalid request body")
+		sendError(w, http.StatusBadRequest, "invalid request body")
 		return
 	}
 	if len(categories) == 0 {
-		sendError(w, http.StatusBadRequest, "No categories provided")
+		sendError(w, http.StatusBadRequest, "no categories provided")
 		return
 	}
 
 	tx, err := s.db.Begin()
 	if err != nil {
-		sendError(w, http.StatusInternalServerError, "Failed to start transaction")
+		sendError(w, http.StatusInternalServerError, "failed to start transaction")
 		return
 	}
 	defer func() {
@@ -144,13 +144,13 @@ func (s *APIServer) handlePostCategories(w http.ResponseWriter, r *http.Request)
 			VALUES (?, ?)`, category.Name, userID)
 		if err != nil {
 			tx.Rollback()
-			sendError(w, http.StatusBadRequest, "Invalid category data")
+			sendError(w, http.StatusBadRequest, "invalid category data")
 			return
 		}
 	}
 
 	if err := tx.Commit(); err != nil {
-		sendError(w, http.StatusInternalServerError, "Failed to commit transaction")
+		sendError(w, http.StatusInternalServerError, "failed to commit transaction")
 		return
 	}
 
@@ -163,11 +163,11 @@ func (s *APIServer) handleDeleteCategories(w http.ResponseWriter, r *http.Reques
 	var categoryIDs []int
 	err := json.NewDecoder(r.Body).Decode(&categoryIDs)
 	if err != nil {
-		sendError(w, http.StatusBadRequest, "Invalid request body")
+		sendError(w, http.StatusBadRequest, "invalid request body")
 		return
 	}
 	if len(categoryIDs) == 0 {
-		sendError(w, http.StatusBadRequest, "No IDs provided")
+		sendError(w, http.StatusBadRequest, "no IDs provided")
 		return
 	}
 
@@ -181,11 +181,11 @@ func (s *APIServer) handleDeleteCategories(w http.ResponseWriter, r *http.Reques
 
 	categoriesExist, err := s.doCategoriesExist(userID, categoryIDs)
 	if err != nil {
-		sendError(w, http.StatusInternalServerError, "Failed to verify category existence")
+		sendError(w, http.StatusInternalServerError, "failed to verify category existence")
 		return
 	}
 	if !categoriesExist {
-		sendError(w, http.StatusNotFound, "One or more category not found")
+		sendError(w, http.StatusNotFound, "one or more category not found")
 		return
 	}
 
@@ -193,7 +193,7 @@ func (s *APIServer) handleDeleteCategories(w http.ResponseWriter, r *http.Reques
 
 	tx, err := s.db.Begin()
 	if err != nil {
-		sendError(w, http.StatusInternalServerError, "Failed to start transaction")
+		sendError(w, http.StatusInternalServerError, "failed to start transaction")
 		return
 	}
 	defer func() {
@@ -206,18 +206,18 @@ func (s *APIServer) handleDeleteCategories(w http.ResponseWriter, r *http.Reques
 	res, err := tx.Exec(query, args...)
 	if err != nil {
 		tx.Rollback()
-		sendError(w, http.StatusInternalServerError, "Failed to delete categories")
+		sendError(w, http.StatusInternalServerError, "failed to delete categories")
 		return
 	}
 
 	if err := tx.Commit(); err != nil {
-		sendError(w, http.StatusInternalServerError, "Failed to commit transaction")
+		sendError(w, http.StatusInternalServerError, "failed to commit transaction")
 		return
 	}
 
 	affected, err := res.RowsAffected()
 	if err != nil {
-		sendError(w, http.StatusInternalServerError, "Could not determine affected rows")
+		sendError(w, http.StatusInternalServerError, "could not determine affected rows")
 		return
 	}
 	sendResponse(w, http.StatusOK, map[string]any{"deleted": affected})
@@ -229,11 +229,11 @@ func (s *APIServer) handlePatchCategories(w http.ResponseWriter, r *http.Request
 	var categories []models.CategoryPatchRequest
 	err := json.NewDecoder(r.Body).Decode(&categories)
 	if err != nil {
-		sendError(w, http.StatusBadRequest, "Invalid request body")
+		sendError(w, http.StatusBadRequest, "invalid request body")
 		return
 	}
 	if len(categories) == 0 {
-		sendError(w, http.StatusBadRequest, "No categories provided")
+		sendError(w, http.StatusBadRequest, "no categories provided")
 		return
 	}
 
@@ -244,17 +244,17 @@ func (s *APIServer) handlePatchCategories(w http.ResponseWriter, r *http.Request
 
 	exist, err := s.doNotesExist(userID, categoryIDs)
 	if err != nil {
-		sendError(w, http.StatusInternalServerError, "Failed to verify categories existence")
+		sendError(w, http.StatusInternalServerError, "failed to verify categories existence")
 		return
 	}
 	if !exist {
-		sendError(w, http.StatusNotFound, "One or more categories not found")
+		sendError(w, http.StatusNotFound, "one or more categories not found")
 		return
 	}
 
 	tx, err := s.db.Begin()
 	if err != nil {
-		sendError(w, http.StatusInternalServerError, "Failed to start transaction")
+		sendError(w, http.StatusInternalServerError, "failed to start transaction")
 		return
 	}
 	defer func() {
@@ -288,13 +288,13 @@ func (s *APIServer) handlePatchCategories(w http.ResponseWriter, r *http.Request
 		_, err = tx.Exec(query, args...)
 		if err != nil {
 			tx.Rollback()
-			sendError(w, http.StatusInternalServerError, fmt.Sprintf("Failed to update category with id %d", category.ID))
+			sendError(w, http.StatusInternalServerError, fmt.Sprintf("failed to update category with id %d", category.ID))
 			return
 		}
 	}
 
 	if err := tx.Commit(); err != nil {
-		sendError(w, http.StatusInternalServerError, "Failed to commit transaction")
+		sendError(w, http.StatusInternalServerError, "failed to commit transaction")
 		return
 	}
 

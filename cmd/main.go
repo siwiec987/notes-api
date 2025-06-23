@@ -20,6 +20,6 @@ func main() {
 	}
 	fmt.Println("Connected to database")
 
-	api := api.NewAPIServer(":8080", db)
-	api.Run()
+	s := api.NewAPIServer(":8080", db)
+	s.Run()
 }
