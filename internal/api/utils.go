@@ -17,9 +17,15 @@ func sendResponse(w http.ResponseWriter, status int, v any) {
 	}
 }
 
-func sendError(w http.ResponseWriter, status int, msg string) {
-	log.Printf("ERROR %d: %s", status, msg)
-	sendResponse(w, status, ErrorResponse{Error: msg})
+func sendError(w http.ResponseWriter, status int, msg any) {
+	log.Printf("ERROR %d: %v", status, msg)
+
+	switch msg.(type) {
+	case string:
+		sendResponse(w, status, map[string]any{"error": msg})
+	default:
+		sendResponse(w, status, map[string]any{"errors": msg})
+	}
 }
 
 func isDateCorrect(s string) bool {

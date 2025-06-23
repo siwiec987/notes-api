@@ -11,10 +11,6 @@ type APIServer struct {
 	db *sql.DB
 }
 
-type ErrorResponse struct {
-	Error string `json:"error"`
-}
-
 func NewAPIServer(addr string, db *sql.DB) *APIServer {
 	return &APIServer{
 		addr: addr,
