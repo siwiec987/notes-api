@@ -8,7 +8,9 @@ import (
 	"net/http"
 	"strings"
 
+	"github.com/siwiec987/notes-api/internal/database"
 	"github.com/siwiec987/notes-api/internal/models"
+	"github.com/siwiec987/notes-api/internal/validation"
 )
 
 func (s *APIServer) handleGetCategories(w http.ResponseWriter, r *http.Request) {
@@ -36,14 +38,14 @@ func (s *APIServer) handleGetCategories(w http.ResponseWriter, r *http.Request) 
 		query += " AND name LIKE ?"
 	}
 
-	paramOperator := map[string]string {
+	paramOperator := map[string]string{
 		createdAtStart: "created_at >=",
-		createdAtEnd: "created_at <=",
+		createdAtEnd:   "created_at <=",
 		updatedAtStart: "updated_at >=",
-		updatedAtEnd: "updated_at <=",
+		updatedAtEnd:   "updated_at <=",
 	}
 
-	err := createDateFilters(&query, &args, paramOperator)
+	err := validation.CreateDateFilters(&query, &args, paramOperator)
 	if err != nil {
 		sendError(w, http.StatusBadRequest, err.Error())
 		return
@@ -98,7 +100,7 @@ func (s *APIServer) handlePostCategories(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	err = withTransaction(s.db, func(tx *sql.Tx) error {
+	err = database.WithTransaction(s.db, func(tx *sql.Tx) error {
 		for _, category := range categories {
 			category.Name = strings.ToLower(category.Name)
 			_, err := tx.Exec(
@@ -133,9 +135,9 @@ func (s *APIServer) handleDeleteCategories(w http.ResponseWriter, r *http.Reques
 		return
 	}
 
-	placeholders, args := buildQueryArgs(userID, categoryIDs)
+	placeholders, args := database.BuildQueryArgs(userID, categoryIDs)
 
-	categoriesExist, err := s.doCategoriesExist(userID, categoryIDs)
+	categoriesExist, err := database.DoRecordsExistForUser(s.db, "categories", userID, categoryIDs)
 	if err != nil {
 		sendError(w, http.StatusInternalServerError, "failed to verify category existence")
 		return
@@ -148,7 +150,7 @@ func (s *APIServer) handleDeleteCategories(w http.ResponseWriter, r *http.Reques
 	query := fmt.Sprintf("DELETE FROM categories WHERE user_id = ? AND id IN (%s)", placeholders)
 
 	var res sql.Result
-	err = withTransaction(s.db, func(tx *sql.Tx) error {
+	err = database.WithTransaction(s.db, func(tx *sql.Tx) error {
 		res, err = tx.Exec(query, args...)
 		if err != nil {
 			return errors.New("failed to delete categories")
@@ -194,7 +196,7 @@ func (s *APIServer) handlePatchCategories(w http.ResponseWriter, r *http.Request
 		categoryIDs = append(categoryIDs, category.ID)
 	}
 
-	exist, err := s.doCategoriesExist(userID, categoryIDs)
+	exist, err := database.DoRecordsExistForUser(s.db, "categories", userID, categoryIDs)
 	if err != nil {
 		sendError(w, http.StatusInternalServerError, "failed to verify categories existence")
 		return
@@ -208,7 +210,7 @@ func (s *APIServer) handlePatchCategories(w http.ResponseWriter, r *http.Request
 		for _, category := range categories {
 			var setClauses []string
 			var args []any
-	
+
 			if category.Name != nil {
 				setClauses = append(setClauses, "name = ?")
 				args = append(args, *category.Name)
@@ -216,16 +218,16 @@ func (s *APIServer) handlePatchCategories(w http.ResponseWriter, r *http.Request
 			if len(setClauses) == 0 {
 				continue
 			}
-	
+
 			query := fmt.Sprintf(
 				`UPDATE categories 
 				SET %s 
 				WHERE user_id = ? 
 				AND id = ?`,
 				strings.Join(setClauses, ","))
-	
+
 			args = append(args, userID, category.ID)
-	
+
 			_, err = tx.Exec(query, args...)
 			if err != nil {
 				return fmt.Errorf("failed to update category with id %d", category.ID)
@@ -235,23 +237,11 @@ func (s *APIServer) handlePatchCategories(w http.ResponseWriter, r *http.Request
 		return nil
 	}
 
-	err = withTransaction(s.db, toExecute)
+	err = database.WithTransaction(s.db, toExecute)
 	if err != nil {
 		sendError(w, http.StatusInternalServerError, err.Error())
 		return
 	}
 
 	sendResponse(w, http.StatusOK, map[string]any{"updated": len(categories)})
-}
-
-func (s *APIServer) doCategoriesExist(userID int, categoryIDs []int) (bool, error) {
-	placeholders, args := buildQueryArgs(userID, categoryIDs)
-
-	queryCheck := fmt.Sprintf(`
-    SELECT COUNT(*) FROM categories 
-    WHERE user_id = ? AND id IN (%s)`, placeholders)
-
-	var count int
-	err := s.db.QueryRow(queryCheck, args...).Scan(&count)
-	return count == len(categoryIDs), err
 }

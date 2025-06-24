@@ -9,7 +9,9 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/siwiec987/notes-api/internal/database"
 	"github.com/siwiec987/notes-api/internal/models"
+	"github.com/siwiec987/notes-api/internal/validation"
 )
 
 func (s *APIServer) handleGetNotes(w http.ResponseWriter, r *http.Request) {
@@ -54,7 +56,7 @@ func (s *APIServer) handleGetNotes(w http.ResponseWriter, r *http.Request) {
 		updatedAtEnd:   "n.updated_at <=",
 	}
 
-	err := createDateFilters(&query, &args, paramOperator)
+	err := validation.CreateDateFilters(&query, &args, paramOperator)
 	if err != nil {
 		sendError(w, http.StatusBadRequest, err.Error())
 		return
@@ -108,7 +110,7 @@ func (s *APIServer) handlePostNotes(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	err = withTransaction(s.db, func(tx *sql.Tx) error {
+	err = database.WithTransaction(s.db, func(tx *sql.Tx) error {
 		for _, note := range notes {
 			_, err := tx.Exec(
 				`INSERT INTO notes (content, category_id, user_id) 
@@ -142,9 +144,9 @@ func (s *APIServer) handleDeleteNotes(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	placeholders, args := buildQueryArgs(userID, noteIDs)
+	placeholders, args := database.BuildQueryArgs(userID, noteIDs)
 
-	notesExist, err := s.doNotesExist(userID, noteIDs)
+	notesExist, err := database.DoRecordsExistForUser(s.db, "notes", userID, noteIDs)
 	if err != nil {
 		sendError(w, http.StatusInternalServerError, "failed to verify notes existence")
 		return
@@ -157,7 +159,7 @@ func (s *APIServer) handleDeleteNotes(w http.ResponseWriter, r *http.Request) {
 	query := fmt.Sprintf("DELETE FROM notes WHERE user_id = ? AND id IN (%s)", placeholders)
 
 	var res sql.Result
-	err = withTransaction(s.db, func(tx *sql.Tx) error {
+	err = database.WithTransaction(s.db, func(tx *sql.Tx) error {
 		res, err = tx.Exec(query, args...)
 		if err != nil {
 			return errors.New("failed to delete note(s)")
@@ -201,7 +203,7 @@ func (s *APIServer) handlePatchNotes(w http.ResponseWriter, r *http.Request) {
 		noteIDs = append(noteIDs, note.ID)
 	}
 
-	exist, err := s.doNotesExist(userID, noteIDs)
+	exist, err := database.DoRecordsExistForUser(s.db, "notes", userID, noteIDs)
 	if err != nil {
 		sendError(w, http.StatusInternalServerError, "failed to verify notes existence")
 		return
@@ -246,23 +248,11 @@ func (s *APIServer) handlePatchNotes(w http.ResponseWriter, r *http.Request) {
 		return nil
 	}
 
-	err = withTransaction(s.db, toExecute)
+	err = database.WithTransaction(s.db, toExecute)
 	if err != nil {
 		sendError(w, http.StatusInternalServerError, err.Error())
 		return
 	}
 
 	sendResponse(w, http.StatusOK, map[string]any{"updated": len(notes)})
-}
-
-func (s *APIServer) doNotesExist(userID int, noteIDs []int) (bool, error) {
-	placeholders, args := buildQueryArgs(userID, noteIDs)
-
-	queryCheck := fmt.Sprintf(`
-    SELECT COUNT(*) FROM notes 
-    WHERE user_id = ? AND id IN (%s)`, placeholders)
-
-	var count int
-	err := s.db.QueryRow(queryCheck, args...).Scan(&count)
-	return count == len(noteIDs), err
 }

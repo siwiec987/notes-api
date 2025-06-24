@@ -1,15 +1,10 @@
 package api
 
 import (
-	"database/sql"
 	"encoding/json"
-	"errors"
-	"fmt"
 	"log"
 	"net/http"
 	"strconv"
-	"strings"
-	"time"
 )
 
 func sendResponse(w http.ResponseWriter, status int, v any) {
@@ -59,62 +54,4 @@ func parseOffset(offsetStr string, defaultOffset int) int {
 	}
 
 	return offset
-}
-
-func isDateCorrect(s string) bool {
-	_, err := time.Parse("2006-01-02 15:04:05", s)
-	return err == nil
-}
-
-func createDateFilter(query *string, args *[]any, param, operator string) error {
-	if param != "" {
-		if !isDateCorrect(param) {
-			return errors.New("invalid date format, example: 2025-06-23 22:49:00")
-		}
-
-		*query += fmt.Sprintf(" AND %s ?", operator)
-		*args = append(*args, param)
-	}
-	return nil
-}
-
-func createDateFilters(query *string, args *[]any, paramOperatorMap map[string]string) error {
-	for param, operator := range paramOperatorMap {
-		err := createDateFilter(query, args, param, operator)
-		if err != nil {
-			return err
-		}
-	}
-
-	return nil
-}
-
-func withTransaction(db *sql.DB, fn func(*sql.Tx) error) error {
-	tx, err := db.Begin()
-	if err != nil {
-		return errors.New("failed to start transaction")
-	}
-	defer tx.Rollback()
-
-	if err := fn(tx); err != nil {
-		return err
-	}
-
-	if err := tx.Commit(); err != nil {
-		return errors.New("failed to commit transaction")
-	}
-
-	return nil
-}
-
-func buildQueryArgs(userID int, ids []int) (string, []any) {
-	placeholders := make([]string, len(ids))
-	args := make([]any, len(ids) + 1)
-	args[0] = userID
-	for i, id := range ids {
-		placeholders[i] = "?"
-		args[i + 1] = id
-	}
-
-	return strings.Join(placeholders, ","), args
 }
