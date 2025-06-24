@@ -1,7 +1,9 @@
 package api
 
 import (
+	"database/sql"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"strconv"
@@ -44,56 +46,27 @@ func (s *APIServer) handleGetNotes(w http.ResponseWriter, r *http.Request) {
 		args = append(args, categoryID)
 		query += " AND n.category_id = ?"
 	}
-	if createdAtStart != "" {
-		if !isDateCorrect(createdAtStart) {
-			sendError(w, http.StatusBadRequest, "invalid date format")
-			return
-		}
-		args = append(args, createdAtStart)
-		query += " AND n.created_at >= ?"
-	}
-	if createdAtEnd != "" {
-		if !isDateCorrect(createdAtEnd) {
-			sendError(w, http.StatusBadRequest, "invalid date format")
-			return
-		}
-		args = append(args, createdAtEnd)
-		query += " AND n.created_at <= ?"
-	}
-	if updatedAtStart != "" {
-		if !isDateCorrect(updatedAtStart) {
-			sendError(w, http.StatusBadRequest, "invalid date format")
-			return
-		}
-		args = append(args, updatedAtStart)
-		query += " AND n.updated_at >= ?"
-	}
-	if updatedAtEnd != "" {
-		if !isDateCorrect(updatedAtEnd) {
-			sendError(w, http.StatusBadRequest, "invalid date format")
-			return
-		}
-		args = append(args, updatedAtEnd)
-		query += " AND n.updated_at <= ?"
+
+	paramOperator := map[string]string{
+		createdAtStart: "n.created_at >=",
+		createdAtEnd:   "n.created_at <=",
+		updatedAtStart: "n.updated_at >=",
+		updatedAtEnd:   "n.updated_at <=",
 	}
 
-	limit := 20
-	if limitStr != "" {
-		parsed, err := strconv.Atoi(limitStr)
-		if err == nil && parsed > 0 {
-			limit = parsed
-		}
+	err := createDateFilters(&query, &args, paramOperator)
+	if err != nil {
+		sendError(w, http.StatusBadRequest, err.Error())
+		return
 	}
+
+	limit := parseLimit(limitStr, 20)
 	args = append(args, limit)
 	query += " LIMIT ?"
-	
-	if offsetStr != "" {
-		offset, err := strconv.Atoi(offsetStr)
-		if err == nil && offset > 0{
-			args = append(args, offset)
-			query += " OFFSET ?"
-		}
-	}
+
+	offset := parseOffset(offsetStr, 0)
+	args = append(args, offset)
+	query += " OFFSET ?"
 
 	rows, err := s.db.Query(query, args...)
 	if err != nil {
@@ -119,7 +92,7 @@ func (s *APIServer) handleGetNotes(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	sendResponse(w, http.StatusOK, map[string]any { "notes": notes })
+	sendResponse(w, http.StatusOK, map[string]any{"notes": notes})
 }
 
 func (s *APIServer) handlePostNotes(w http.ResponseWriter, r *http.Request) {
@@ -135,35 +108,24 @@ func (s *APIServer) handlePostNotes(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	tx, err := s.db.Begin()
+	err = withTransaction(s.db, func(tx *sql.Tx) error {
+		for _, note := range notes {
+			_, err := tx.Exec(
+				`INSERT INTO notes (content, category_id, user_id) 
+				VALUES (?, ? ,?)`, note.Content, note.CategoryID, userID)
+			if err != nil {
+				return errors.New("invalid note data")
+			}
+		}
+
+		return nil
+	})
 	if err != nil {
-		sendError(w, http.StatusInternalServerError, "failed to start transaction")
-		return
-	}
-	defer func() {
-		if p := recover(); p != nil {
-			tx.Rollback()
-			panic(p)
-		}
-	}()
-
-	for _, note := range notes {
-		_, err := tx.Exec(
-			`INSERT INTO notes (content, category_id, user_id) 
-			VALUES (?, ? ,?)`, note.Content, note.CategoryID, userID)
-		if err != nil {
-			tx.Rollback()
-			sendError(w, http.StatusBadRequest, "invalid note data")
-			return
-		}
-	}
-
-	if err := tx.Commit(); err != nil {
-		sendError(w, http.StatusInternalServerError, "failed to commit transaction")
+		sendError(w, http.StatusInternalServerError, err.Error())
 		return
 	}
 
-	sendResponse(w, http.StatusCreated, map[string]any { "inserted": len(notes) })
+	sendResponse(w, http.StatusCreated, map[string]any{"inserted": len(notes)})
 }
 
 func (s *APIServer) handleDeleteNotes(w http.ResponseWriter, r *http.Request) {
@@ -180,13 +142,7 @@ func (s *APIServer) handleDeleteNotes(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	placeholders := make([]string, len(noteIDs))
-	args := make([]any, len(noteIDs) + 1)
-	args[0] = userID
-	for i, id := range noteIDs {
-		placeholders[i] = "?"
-		args[i + 1] = id
-	}
+	placeholders, args := buildQueryArgs(userID, noteIDs)
 
 	notesExist, err := s.doNotesExist(userID, noteIDs)
 	if err != nil {
@@ -198,29 +154,23 @@ func (s *APIServer) handleDeleteNotes(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	query := fmt.Sprintf("DELETE FROM notes WHERE user_id = ? AND id IN (%s)", strings.Join(placeholders, ","))
+	query := fmt.Sprintf("DELETE FROM notes WHERE user_id = ? AND id IN (%s)", placeholders)
 
-	tx, err := s.db.Begin()
-	if err != nil {
-		sendError(w, http.StatusInternalServerError, "failed to start transaction")
-		return
-	}
-	defer func() {
-		if p := recover(); p != nil {
-			tx.Rollback()
-			panic(p)
+	var res sql.Result
+	err = withTransaction(s.db, func(tx *sql.Tx) error {
+		res, err = tx.Exec(query, args...)
+		if err != nil {
+			return errors.New("failed to delete note(s)")
 		}
-	}()
 
-	res, err := tx.Exec(query, args...)
+		return nil
+	})
 	if err != nil {
-		tx.Rollback()
-		sendError(w, http.StatusInternalServerError, "failed to delete note(s)")
+		sendError(w, http.StatusInternalServerError, err.Error())
 		return
 	}
-
-	if err := tx.Commit(); err != nil {
-		sendError(w, http.StatusInternalServerError, "failed to commit transaction")
+	if res == nil {
+		sendError(w, http.StatusInternalServerError, "no result from transaction")
 		return
 	}
 
@@ -229,7 +179,7 @@ func (s *APIServer) handleDeleteNotes(w http.ResponseWriter, r *http.Request) {
 		sendError(w, http.StatusInternalServerError, "could not determine affected rows")
 		return
 	}
-	sendResponse(w, http.StatusOK, map[string]any { "deleted": affected })
+	sendResponse(w, http.StatusOK, map[string]any{"deleted": affected})
 }
 
 func (s *APIServer) handlePatchNotes(w http.ResponseWriter, r *http.Request) {
@@ -261,73 +211,58 @@ func (s *APIServer) handlePatchNotes(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	tx, err := s.db.Begin()
+	toExecute := func(tx *sql.Tx) error {
+		for _, note := range notes {
+			var setClauses []string
+			var args []any
+
+			if note.Content != nil {
+				setClauses = append(setClauses, "content = ?")
+				args = append(args, *note.Content)
+			}
+			if note.CategoryID != nil {
+				setClauses = append(setClauses, "category_id = ?")
+				args = append(args, *note.CategoryID)
+			}
+			if len(setClauses) == 0 {
+				continue
+			}
+
+			query := fmt.Sprintf(
+				`UPDATE notes 
+				SET %s 
+				WHERE user_id = ? 
+				AND id = ?`,
+				strings.Join(setClauses, ","))
+
+			args = append(args, userID, note.ID)
+
+			_, err = tx.Exec(query, args...)
+			if err != nil {
+				return fmt.Errorf("failed to update note with id %d", note.ID)
+			}
+		}
+
+		return nil
+	}
+
+	err = withTransaction(s.db, toExecute)
 	if err != nil {
-		sendError(w, http.StatusInternalServerError, "failed to start transaction")
-		return
-	}
-	defer func() {
-		if p := recover(); p != nil {
-			tx.Rollback()
-			panic(p)
-		}
-	}()
-
-	for _, note := range notes {
-		var setClauses []string
-		var args []any
-
-		if note.Content != nil {
-			setClauses = append(setClauses, "content = ?")
-			args = append(args, *note.Content)
-		}
-		if note.CategoryID != nil {
-			setClauses = append(setClauses, "category_id = ?")
-			args = append(args, *note.CategoryID)
-		}
-		if len(setClauses) == 0 {
-			continue
-		}
-	
-		query := fmt.Sprintf(
-			`UPDATE notes 
-			SET %s 
-			WHERE user_id = ? 
-			AND id = ?`, 
-			strings.Join(setClauses, ","))
-		
-		args = append(args, userID, note.ID)	 
-
-		_, err = tx.Exec(query, args...)
-		if err != nil {
-			tx.Rollback()
-			sendError(w, http.StatusInternalServerError, fmt.Sprintf("failed to update note with id %d", note.ID))
-			return
-		}
-	}
-
-	if err := tx.Commit(); err != nil {
-		sendError(w, http.StatusInternalServerError, "failed to commit transaction")
+		sendError(w, http.StatusInternalServerError, err.Error())
 		return
 	}
 
-	sendResponse(w, http.StatusOK, map[string]any { "updated": len(notes) })
+	sendResponse(w, http.StatusOK, map[string]any{"updated": len(notes)})
 }
 
 func (s *APIServer) doNotesExist(userID int, noteIDs []int) (bool, error) {
-	placeholders := make([]string, len(noteIDs))
-	args := make([]any, len(noteIDs)+1)
-	args[0] = userID
-	for i, id := range noteIDs {
-		placeholders[i] = "?"
-		args[i+1] = id
-	}
+	placeholders, args := buildQueryArgs(userID, noteIDs)
 
 	queryCheck := fmt.Sprintf(`
     SELECT COUNT(*) FROM notes 
-    WHERE user_id = ? AND id IN (%s)`, strings.Join(placeholders, ","))
+    WHERE user_id = ? AND id IN (%s)`, placeholders)
 
 	var count int
 	err := s.db.QueryRow(queryCheck, args...).Scan(&count)
 	return count == len(noteIDs), err
-} 
+}

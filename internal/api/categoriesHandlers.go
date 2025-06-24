@@ -1,10 +1,11 @@
 package api
 
 import (
+	"database/sql"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
-	"strconv"
 	"strings"
 
 	"github.com/siwiec987/notes-api/internal/models"
@@ -22,7 +23,7 @@ func (s *APIServer) handleGetCategories(w http.ResponseWriter, r *http.Request) 
 	offsetStr := r.URL.Query().Get("offset")
 
 	query := `
-		SELECT id, name
+		SELECT id, name, created_at, updated_at
 		FROM categories
 		WHERE user_id = ?
 	`
@@ -34,56 +35,27 @@ func (s *APIServer) handleGetCategories(w http.ResponseWriter, r *http.Request) 
 		args = append(args, name)
 		query += " AND name LIKE ?"
 	}
-	if createdAtStart != "" {
-		if !isDateCorrect(createdAtStart) {
-			sendError(w, http.StatusBadRequest, "invalid date format")
-			return
-		}
-		args = append(args, createdAtStart)
-		query += " AND created_at >= ?"
-	}
-	if createdAtEnd != "" {
-		if !isDateCorrect(createdAtEnd) {
-			sendError(w, http.StatusBadRequest, "invalid date format")
-			return
-		}
-		args = append(args, createdAtEnd)
-		query += " AND created_at <= ?"
-	}
-	if updatedAtStart != "" {
-		if !isDateCorrect(updatedAtStart) {
-			sendError(w, http.StatusBadRequest, "invalid date format")
-			return
-		}
-		args = append(args, updatedAtStart)
-		query += " AND updated_at >= ?"
-	}
-	if updatedAtEnd != "" {
-		if !isDateCorrect(updatedAtEnd) {
-			sendError(w, http.StatusBadRequest, "invalid date format")
-			return
-		}
-		args = append(args, updatedAtEnd)
-		query += " AND updated_at <= ?"
+
+	paramOperator := map[string]string {
+		createdAtStart: "created_at >=",
+		createdAtEnd: "created_at <=",
+		updatedAtStart: "updated_at >=",
+		updatedAtEnd: "updated_at <=",
 	}
 
-	limit := 20
-	if limitStr != "" {
-		parsed, err := strconv.Atoi(limitStr)
-		if err == nil && parsed > 0 {
-			limit = parsed
-		}
+	err := createDateFilters(&query, &args, paramOperator)
+	if err != nil {
+		sendError(w, http.StatusBadRequest, err.Error())
+		return
 	}
+
+	limit := parseLimit(limitStr, 20)
 	args = append(args, limit)
 	query += " LIMIT ?"
-	
-	if offsetStr != "" {
-		offset, err := strconv.Atoi(offsetStr)
-		if err == nil && offset > 0{
-			args = append(args, offset)
-			query += " OFFSET ?"
-		}
-	}
+
+	offset := parseOffset(offsetStr, 0)
+	args = append(args, offset)
+	query += " OFFSET ?"
 
 	rows, err := s.db.Query(query, args...)
 	if err != nil {
@@ -95,7 +67,7 @@ func (s *APIServer) handleGetCategories(w http.ResponseWriter, r *http.Request) 
 	var categories []models.Category
 	for rows.Next() {
 		var category models.Category
-		err := rows.Scan(&category.ID, &category.Name)
+		err := rows.Scan(&category.ID, &category.Name, &category.CreatedAt, &category.UpdatedAt)
 		if err != nil {
 			sendError(w, http.StatusInternalServerError, "failed to fetch categories")
 			return
@@ -126,31 +98,21 @@ func (s *APIServer) handlePostCategories(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	tx, err := s.db.Begin()
+	err = withTransaction(s.db, func(tx *sql.Tx) error {
+		for _, category := range categories {
+			category.Name = strings.ToLower(category.Name)
+			_, err := tx.Exec(
+				`INSERT INTO categories (name, user_id) 
+				VALUES (?, ?)`, category.Name, userID)
+			if err != nil {
+				return errors.New("invalid category data")
+			}
+		}
+
+		return nil
+	})
 	if err != nil {
-		sendError(w, http.StatusInternalServerError, "failed to start transaction")
-		return
-	}
-	defer func() {
-		if p := recover(); p != nil {
-			tx.Rollback()
-			panic(p)
-		}
-	}()
-
-	for _, category := range categories {
-		_, err := tx.Exec(
-			`INSERT INTO categories (name, user_id) 
-			VALUES (?, ?)`, category.Name, userID)
-		if err != nil {
-			tx.Rollback()
-			sendError(w, http.StatusBadRequest, "invalid category data")
-			return
-		}
-	}
-
-	if err := tx.Commit(); err != nil {
-		sendError(w, http.StatusInternalServerError, "failed to commit transaction")
+		sendError(w, http.StatusInternalServerError, err.Error())
 		return
 	}
 
@@ -171,13 +133,7 @@ func (s *APIServer) handleDeleteCategories(w http.ResponseWriter, r *http.Reques
 		return
 	}
 
-	placeholders := make([]string, len(categoryIDs))
-	args := make([]any, len(categoryIDs)+1)
-	args[0] = userID
-	for i, id := range categoryIDs {
-		placeholders[i] = "?"
-		args[i+1] = id
-	}
+	placeholders, args := buildQueryArgs(userID, categoryIDs)
 
 	categoriesExist, err := s.doCategoriesExist(userID, categoryIDs)
 	if err != nil {
@@ -189,29 +145,22 @@ func (s *APIServer) handleDeleteCategories(w http.ResponseWriter, r *http.Reques
 		return
 	}
 
-	query := fmt.Sprintf("DELETE FROM categories WHERE user_id = ? AND id IN (%s)", strings.Join(placeholders, ","))
+	query := fmt.Sprintf("DELETE FROM categories WHERE user_id = ? AND id IN (%s)", placeholders)
 
-	tx, err := s.db.Begin()
-	if err != nil {
-		sendError(w, http.StatusInternalServerError, "failed to start transaction")
-		return
-	}
-	defer func() {
-		if p := recover(); p != nil {
-			tx.Rollback()
-			panic(p)
+	var res sql.Result
+	err = withTransaction(s.db, func(tx *sql.Tx) error {
+		res, err = tx.Exec(query, args...)
+		if err != nil {
+			return errors.New("failed to delete categories")
 		}
-	}()
-
-	res, err := tx.Exec(query, args...)
+		return nil
+	})
 	if err != nil {
-		tx.Rollback()
-		sendError(w, http.StatusInternalServerError, "failed to delete categories")
+		sendError(w, http.StatusInternalServerError, err.Error())
 		return
 	}
-
-	if err := tx.Commit(); err != nil {
-		sendError(w, http.StatusInternalServerError, "failed to commit transaction")
+	if res == nil {
+		sendError(w, http.StatusInternalServerError, "no result from transaction")
 		return
 	}
 
@@ -239,10 +188,13 @@ func (s *APIServer) handlePatchCategories(w http.ResponseWriter, r *http.Request
 
 	var categoryIDs []int
 	for _, category := range categories {
+		if category.Name != nil {
+			*category.Name = strings.ToLower(*category.Name)
+		}
 		categoryIDs = append(categoryIDs, category.ID)
 	}
 
-	exist, err := s.doNotesExist(userID, categoryIDs)
+	exist, err := s.doCategoriesExist(userID, categoryIDs)
 	if err != nil {
 		sendError(w, http.StatusInternalServerError, "failed to verify categories existence")
 		return
@@ -252,69 +204,54 @@ func (s *APIServer) handlePatchCategories(w http.ResponseWriter, r *http.Request
 		return
 	}
 
-	tx, err := s.db.Begin()
+	toExecute := func(tx *sql.Tx) error {
+		for _, category := range categories {
+			var setClauses []string
+			var args []any
+	
+			if category.Name != nil {
+				setClauses = append(setClauses, "name = ?")
+				args = append(args, *category.Name)
+			}
+			if len(setClauses) == 0 {
+				continue
+			}
+	
+			query := fmt.Sprintf(
+				`UPDATE categories 
+				SET %s 
+				WHERE user_id = ? 
+				AND id = ?`,
+				strings.Join(setClauses, ","))
+	
+			args = append(args, userID, category.ID)
+	
+			_, err = tx.Exec(query, args...)
+			if err != nil {
+				return fmt.Errorf("failed to update category with id %d", category.ID)
+			}
+		}
+
+		return nil
+	}
+
+	err = withTransaction(s.db, toExecute)
 	if err != nil {
-		sendError(w, http.StatusInternalServerError, "failed to start transaction")
-		return
-	}
-	defer func() {
-		if p := recover(); p != nil {
-			tx.Rollback()
-			panic(p)
-		}
-	}()
-
-	for _, category := range categories {
-		var setClauses []string
-		var args []any
-
-		if category.Name != nil {
-			setClauses = append(setClauses, "name = ?")
-			args = append(args, *category.Name)
-		}
-		if len(setClauses) == 0 {
-			continue
-		}
-
-		query := fmt.Sprintf(
-			`UPDATE categories 
-			SET %s 
-			WHERE user_id = ? 
-			AND id = ?`,
-			strings.Join(setClauses, ","))
-
-		args = append(args, userID, category.ID)
-
-		_, err = tx.Exec(query, args...)
-		if err != nil {
-			tx.Rollback()
-			sendError(w, http.StatusInternalServerError, fmt.Sprintf("failed to update category with id %d", category.ID))
-			return
-		}
-	}
-
-	if err := tx.Commit(); err != nil {
-		sendError(w, http.StatusInternalServerError, "failed to commit transaction")
+		sendError(w, http.StatusInternalServerError, err.Error())
 		return
 	}
 
 	sendResponse(w, http.StatusOK, map[string]any{"updated": len(categories)})
 }
 
-func (s *APIServer) doCategoriesExist(userID int, categoriesIDs []int) (bool, error) {
-	placeholders := make([]string, len(categoriesIDs))
-	args := make([]any, len(categoriesIDs)+1)
-	args[0] = userID
-	for i, id := range categoriesIDs {
-		placeholders[i] = "?"
-		args[i+1] = id
-	}
+func (s *APIServer) doCategoriesExist(userID int, categoryIDs []int) (bool, error) {
+	placeholders, args := buildQueryArgs(userID, categoryIDs)
 
 	queryCheck := fmt.Sprintf(`
     SELECT COUNT(*) FROM categories 
-    WHERE user_id = ? AND id IN (%s)`, strings.Join(placeholders, ","))
+    WHERE user_id = ? AND id IN (%s)`, placeholders)
 
 	var count int
 	err := s.db.QueryRow(queryCheck, args...).Scan(&count)
-	return count == len(categoriesIDs), err
+	return count == len(categoryIDs), err
 }
