@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"encoding/json"
 	"net/http"
+	"strings"
 
 	"github.com/siwiec987/notes-api/internal/models"
 	"github.com/siwiec987/notes-api/internal/validation"
@@ -17,6 +18,9 @@ func (s *APIServer) handleRegister(w http.ResponseWriter, r *http.Request) {
 		sendError(w, http.StatusBadRequest, "invalid request body")
 		return
 	}
+
+	user.Username = strings.ToLower(user.Username)
+	user.Email = strings.ToLower(user.Email)
 
 	if errs := validation.ValidateInput(user); len(errs) > 0 {
 		sendError(w, http.StatusBadRequest, errs)
@@ -46,6 +50,8 @@ func (s *APIServer) handleLogin(w http.ResponseWriter, r *http.Request) {
 		sendError(w, http.StatusBadRequest, "invalid request body")
 		return
 	}
+
+	creds.Username = strings.ToLower(creds.Username)
 
 	var id int
 	var hashedPassword string
