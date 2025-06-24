@@ -26,7 +26,6 @@ func SeedData(db *sql.DB) error {
 		VALUES
 		('Personal', 1),
 		('Work', 1),
-		('Personal', 2),
 		('School', 2)
 	`)
 	if err != nil {
@@ -42,7 +41,7 @@ func SeedData(db *sql.DB) error {
 		('Test', 1, 2),
 		('Dinner', 2, 1),
 		('Homework', 2, 2),
-		('Test', 2, 2),
+		('Test', 2, 2)
 	`)
 	if err != nil {
 		return fmt.Errorf("failed to seed notes: %v", err)
