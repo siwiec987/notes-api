@@ -9,7 +9,7 @@ import (
 )
 
 var (
-	usernameRegex = regexp.MustCompile(`^[a-zA-Z0-9._]{3,20}$`)
+	usernameRegex = regexp.MustCompile(`^[a-zA-Z0-9._]+$`)
 	emailRegex    = regexp.MustCompile(`^[a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,}$`)
 )
 
