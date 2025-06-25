@@ -25,6 +25,8 @@ func (s *APIServer) handleGetNotes(w http.ResponseWriter, r *http.Request) {
 	updatedAtEnd := r.URL.Query().Get("updated_at_end")
 	limitStr := r.URL.Query().Get("limit")
 	offsetStr := r.URL.Query().Get("offset")
+	sortBy := strings.ToLower((r.URL.Query().Get("sort_by")))
+	sortOrder := strings.ToUpper((r.URL.Query().Get("sort_order")))
 
 	query := `
 		SELECT n.id, n.content, n.created_at, n.updated_at, n.category_id, c.name as category_name 
@@ -62,12 +64,12 @@ func (s *APIServer) handleGetNotes(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	limit := parseLimit(limitStr, 20)
-	args = append(args, limit)
-	query += " LIMIT ?"
-
-	offset := parseOffset(offsetStr, 0)
-	args = append(args, offset)
+	columnNames, err := database.GetColumnNamesForTable(s.db, "notes")
+	if err != nil {
+		sendError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+	applySorting(&query, sortBy, sortOrder, columnNames, "updated_at")
 	query += " OFFSET ?"
 
 	rows, err := s.db.Query(query, args...)

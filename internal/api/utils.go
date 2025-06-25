@@ -55,3 +55,14 @@ func parseOffset(offsetStr string, defaultOffset int) int {
 
 	return offset
 }
+func applySorting(query *string, sortBy, sortOrder string, allowedColumns []string, defaultColumn string) {
+	if !slices.Contains(allowedColumns, sortBy) {
+		sortBy = defaultColumn
+	}
+
+	if sortOrder != "ASC" && sortOrder != "DESC" {
+		sortOrder = "DESC"
+	}
+
+	*query += fmt.Sprintf(" ORDER BY %s %s", sortBy, sortOrder)
+}

@@ -48,3 +48,21 @@ func BuildQueryArgs(userID int, ids []int) (string, []any) {
 
 	return strings.Join(placeholders, ","), args
 }
+
+func GetColumnNamesForTable(db *sql.DB, table string) ([]string, error) {
+	er := errors.New("failed fetching column names")
+	query := fmt.Sprintf("SELECT * FROM %s LIMIT 1;", table)
+
+	rows, err := db.Query(query)
+	if err != nil {
+		return []string{}, er
+	}
+	defer rows.Close()
+
+	names, err := rows.Columns()
+	if err != nil {
+		return []string{}, er
+	}
+
+	return names, nil
+}
