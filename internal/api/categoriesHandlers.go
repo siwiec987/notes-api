@@ -10,7 +10,6 @@ import (
 
 	"github.com/siwiec987/notes-api/internal/database"
 	"github.com/siwiec987/notes-api/internal/models"
-	"github.com/siwiec987/notes-api/internal/validation"
 )
 
 func (s *APIServer) handleGetCategories(w http.ResponseWriter, r *http.Request) {
@@ -34,11 +33,8 @@ func (s *APIServer) handleGetCategories(w http.ResponseWriter, r *http.Request) 
 
 	var args []any
 	args = append(args, userID)
-	if name != "" {
-		name = "%" + name + "%"
-		args = append(args, name)
-		query += " AND name LIKE ?"
-	}
+
+	applyLikeFilter(&query, &args, name, "name")
 
 	paramOperator := map[string]string{
 		createdAtStart: "created_at >=",
@@ -46,8 +42,7 @@ func (s *APIServer) handleGetCategories(w http.ResponseWriter, r *http.Request) 
 		updatedAtStart: "updated_at >=",
 		updatedAtEnd:   "updated_at <=",
 	}
-
-	err := validation.CreateDateFilters(&query, &args, paramOperator)
+	err := applyDateFilters(&query, &args, paramOperator)
 	if err != nil {
 		sendError(w, http.StatusBadRequest, err.Error())
 		return
@@ -59,7 +54,7 @@ func (s *APIServer) handleGetCategories(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 	applySorting(&query, sortBy, sortOrder, columnNames, "updated_at")
-	query += " OFFSET ?"
+	applyPagination(&query, &args, limitStr, offsetStr)
 
 	rows, err := s.db.Query(query, args...)
 	if err != nil {

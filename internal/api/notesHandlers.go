@@ -11,7 +11,6 @@ import (
 
 	"github.com/siwiec987/notes-api/internal/database"
 	"github.com/siwiec987/notes-api/internal/models"
-	"github.com/siwiec987/notes-api/internal/validation"
 )
 
 func (s *APIServer) handleGetNotes(w http.ResponseWriter, r *http.Request) {
@@ -36,11 +35,9 @@ func (s *APIServer) handleGetNotes(w http.ResponseWriter, r *http.Request) {
 	`
 	var args []any
 	args = append(args, userID)
-	if content != "" {
-		content = "%" + content + "%"
-		args = append(args, content)
-		query += " AND n.content LIKE ?"
-	}
+
+	applyLikeFilter(&query, &args, content, "n.content")
+
 	if categoryIDStr != "" {
 		categoryID, err := strconv.Atoi(categoryIDStr)
 		if err != nil {
@@ -57,8 +54,7 @@ func (s *APIServer) handleGetNotes(w http.ResponseWriter, r *http.Request) {
 		updatedAtStart: "n.updated_at >=",
 		updatedAtEnd:   "n.updated_at <=",
 	}
-
-	err := validation.CreateDateFilters(&query, &args, paramOperator)
+	err := applyDateFilters(&query, &args, paramOperator)
 	if err != nil {
 		sendError(w, http.StatusBadRequest, err.Error())
 		return
@@ -70,7 +66,7 @@ func (s *APIServer) handleGetNotes(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	applySorting(&query, sortBy, sortOrder, columnNames, "updated_at")
-	query += " OFFSET ?"
+	applyPagination(&query, &args, limitStr, offsetStr)
 
 	rows, err := s.db.Query(query, args...)
 	if err != nil {
