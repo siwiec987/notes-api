@@ -3,10 +3,12 @@ package api
 import (
 	"context"
 	"errors"
+	"fmt"
 	"log"
 	"net/http"
 	"os"
 	"strings"
+	"testing"
 	"time"
 
 	"github.com/golang-jwt/jwt/v5"
@@ -25,9 +27,14 @@ var jwtKey []byte
 func init() {
 	key := os.Getenv("JWT_SECRET")
 	if key == "" {
-		log.Fatal("JWT_SECRET not set!")
+		if testing.Testing() {
+			key = "test-secret-key"
+		} else {
+			log.Fatal("JWT_SECRET not set!")
+		}
 	}
 	jwtKey = []byte(key)
+	fmt.Println(key)
 }
 
 func generateToken(userID int) (string, error) {
