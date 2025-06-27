@@ -3,7 +3,6 @@ package api
 import (
 	"context"
 	"errors"
-	"fmt"
 	"log"
 	"net/http"
 	"os"
@@ -34,7 +33,6 @@ func init() {
 		}
 	}
 	jwtKey = []byte(key)
-	fmt.Println(key)
 }
 
 func generateToken(userID int) (string, error) {
