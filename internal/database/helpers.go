@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"slices"
 	"strings"
 )
 
@@ -59,10 +60,19 @@ func GetColumnNamesForTable(db *sql.DB, table string) ([]string, error) {
 	}
 	defer rows.Close()
 
-	names, err := rows.Columns()
+	cols, err := rows.Columns()
 	if err != nil {
 		return []string{}, er
 	}
 
-	return names, nil
+	var index int
+	for i, col := range cols {
+		if col == "user_id" {
+			index = i
+			break
+		}
+	}
+	cols = slices.Delete(cols, index, index+1)
+
+	return cols, nil
 }
