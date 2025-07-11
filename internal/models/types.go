@@ -4,6 +4,18 @@ import (
 	"time"
 )
 
+type ErrorResponse struct {
+	Error string `json:"error"`
+}
+
+type ErrorsResponse struct {
+	Errors map[string][]string `json:"errors"`
+}
+
+type MessageResponse struct {
+	Message string `json:"message"`
+}
+
 type RegisterRequest struct {
 	Username string `json:"username"`
 	Email    string `json:"email"`
@@ -13,6 +25,10 @@ type RegisterRequest struct {
 type LoginRequest struct {
 	Username string `json:"username"`
 	Password string `json:"password"`
+}
+
+type LoginSuccessResponse struct {
+	Token string `json:"token"`
 }
 
 type NotePostRequest struct {
@@ -48,4 +64,24 @@ type CategoryPostRequest struct {
 type CategoryPatchRequest struct {
 	ID	 int	 `json:"id"`
 	Name *string `json:"name"`
+}
+
+type MultipleNotesResponse struct {
+	Notes []Note `json:"notes"`
+}
+
+type MultipleCategoriesResponse struct {
+	Categories []Category `json:"categories"`
+}
+
+type InsertedResponse struct {
+	Inserted int `json:"inserted"`
+}
+
+type DeletedResponse struct {
+	Deleted int `json:"deleted"`
+}
+
+type UpdatedResponse struct {
+	Updated int `json:"updated"`
 }
