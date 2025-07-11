@@ -4,6 +4,9 @@ import (
 	"database/sql"
 	"log"
 	"net/http"
+
+	"github.com/swaggo/http-swagger"
+	_ "github.com/siwiec987/notes-api/docs"
 )
 
 type APIServer struct {
@@ -34,7 +37,9 @@ func (s *APIServer) Run() {
 	router.HandleFunc("DELETE /categories", authMiddleware(s.handleDeleteCategories))
 	router.HandleFunc("PATCH /categories", authMiddleware(s.handlePatchCategories))
 
-	router.HandleFunc("/seed", s.handleSeed)
+	// router.HandleFunc("/seed", s.handleSeed)
+
+	router.Handle("GET /docs/", httpSwagger.WrapHandler)
 
 	log.Println("Running on port:", s.addr)
 
