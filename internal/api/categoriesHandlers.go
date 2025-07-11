@@ -12,6 +12,24 @@ import (
 	"github.com/siwiec987/notes-api/internal/models"
 )
 
+//	@Summary		Get categories
+//	@Description	Get a list of categories with optional filters, pagination and sorting.
+//	@Tags			categories
+//	@Produce		json
+//	@Param			name				query		string	false	"Filter by category name (case-insensitive)"
+//	@Param			created_at_start	query		string	false	"Filter by created_at >= (format: 2006-01-02 15:04:05)"
+//	@Param			created_at_end		query		string	false	"Filter by created_at <= (format: 2006-01-02 15:04:05)"
+//	@Param			updated_at_start	query		string	false	"Filter by updated_at >= (format: 2006-01-02 15:04:05)"
+//	@Param			updated_at_end		query		string	false	"Filter by updated_at <= (format: 2006-01-02 15:04:05)"
+//	@Param			limit				query		int		false	"Number of categories to return"
+//	@Param			offset				query		int		false	"Number of categories to skip"
+//	@Param			sort_by				query		string	false	"Sort by field (id, name, created_at, updated_at, default: updated_at)"
+//	@Param			sort_order			query		string	false	"Sort order (ASC or DESC)"
+//	@Success		200					{object}	models.MultipleCategoriesResponse
+//	@Failure		400					{object}	models.ErrorResponse
+//	@Failure		500					{object}	models.ErrorResponse
+//	@Security		BearerAuth
+//	@Router			/categories [get]
 func (s *APIServer) handleGetCategories(w http.ResponseWriter, r *http.Request) {
 	userID := getUserID(r)
 
@@ -80,9 +98,20 @@ func (s *APIServer) handleGetCategories(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
-	sendResponse(w, http.StatusOK, map[string]any{"categories": categories})
+	sendResponse(w, http.StatusOK, models.MultipleCategoriesResponse{Categories: categories})
 }
 
+//	@Summary		Create categories
+//	@Description	Create one or more categories for the current user.
+//	@Tags			categories
+//	@Accept			json
+//	@Produce		json
+//	@Param			categories	body		[]models.CategoryPostRequest	true	"List of categories to create"
+//	@Success		201			{object}	models.InsertedResponse			"Number of inserted categories"
+//	@Failure		400			{object}	models.ErrorResponse
+//	@Failure		500			{object}	models.ErrorResponse
+//	@Security		BearerAuth
+//	@Router			/categories [post]
 func (s *APIServer) handlePostCategories(w http.ResponseWriter, r *http.Request) {
 	userID := getUserID(r)
 
@@ -115,9 +144,21 @@ func (s *APIServer) handlePostCategories(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	sendResponse(w, http.StatusCreated, map[string]any{"inserted": len(categories)})
+	sendResponse(w, http.StatusCreated, models.InsertedResponse{Inserted: len(categories)})
 }
 
+//	@Summary		Delete categories
+//	@Description	Delete one or more categories by their IDs.
+//	@Tags			categories
+//	@Accept			json
+//	@Produce		json
+//	@Param			ids	body		[]int					true	"List of category IDs to delete"
+//	@Success		200	{object}	models.DeletedResponse	"Number of deleted categories"
+//	@Failure		400	{object}	models.ErrorResponse	
+//	@Failure		404	{object}	models.ErrorResponse
+//	@Failure		500	{object}	models.ErrorResponse
+//	@Security		BearerAuth
+//	@Router			/categories [delete]
 func (s *APIServer) handleDeleteCategories(w http.ResponseWriter, r *http.Request) {
 	userID := getUserID(r)
 
@@ -168,9 +209,21 @@ func (s *APIServer) handleDeleteCategories(w http.ResponseWriter, r *http.Reques
 		sendError(w, http.StatusInternalServerError, "could not determine affected rows")
 		return
 	}
-	sendResponse(w, http.StatusOK, map[string]any{"deleted": affected})
+	sendResponse(w, http.StatusOK, models.DeletedResponse{Deleted: int(affected)})
 }
 
+//	@Summary		Update categories
+//	@Description	Update name of one or multiple categories.
+//	@Tags			categories
+//	@Accept			json
+//	@Produce		json
+//	@Param			categories	body		[]models.CategoryPatchRequest	true	"List of categories with updated data"
+//	@Success		200			{object}	models.UpdatedResponse			"Number of updated categories"
+//	@Failure		400			{object}	models.ErrorResponse
+//	@Failure		404			{object}	models.ErrorResponse
+//	@Failure		500			{object}	models.ErrorResponse
+//	@Security		BearerAuth
+//	@Router			/categories [patch]
 func (s *APIServer) handlePatchCategories(w http.ResponseWriter, r *http.Request) {
 	userID := getUserID(r)
 
@@ -240,5 +293,5 @@ func (s *APIServer) handlePatchCategories(w http.ResponseWriter, r *http.Request
 		return
 	}
 
-	sendResponse(w, http.StatusOK, map[string]any{"updated": len(categories)})
+	sendResponse(w, http.StatusOK, models.UpdatedResponse{Updated: len(categories)})
 }

@@ -1,0 +1,546 @@
+basePath: /
+definitions:
+  models.Category:
+    properties:
+      created_at:
+        type: string
+      id:
+        type: integer
+      name:
+        type: string
+      updated_at:
+        type: string
+    type: object
+  models.CategoryPatchRequest:
+    properties:
+      id:
+        type: integer
+      name:
+        type: string
+    type: object
+  models.CategoryPostRequest:
+    properties:
+      name:
+        type: string
+    type: object
+  models.DeletedResponse:
+    properties:
+      deleted:
+        type: integer
+    type: object
+  models.ErrorResponse:
+    properties:
+      error:
+        type: string
+    type: object
+  models.ErrorsResponse:
+    properties:
+      errors:
+        additionalProperties:
+          items:
+            type: string
+          type: array
+        type: object
+    type: object
+  models.InsertedResponse:
+    properties:
+      inserted:
+        type: integer
+    type: object
+  models.LoginRequest:
+    properties:
+      password:
+        type: string
+      username:
+        type: string
+    type: object
+  models.LoginSuccessResponse:
+    properties:
+      token:
+        type: string
+    type: object
+  models.MessageResponse:
+    properties:
+      message:
+        type: string
+    type: object
+  models.MultipleCategoriesResponse:
+    properties:
+      categories:
+        items:
+          $ref: '#/definitions/models.Category'
+        type: array
+    type: object
+  models.MultipleNotesResponse:
+    properties:
+      notes:
+        items:
+          $ref: '#/definitions/models.Note'
+        type: array
+    type: object
+  models.Note:
+    properties:
+      category:
+        $ref: '#/definitions/models.Category'
+      content:
+        type: string
+      created_at:
+        type: string
+      id:
+        type: integer
+      updated_at:
+        type: string
+    type: object
+  models.NotePatchRequest:
+    properties:
+      category_id:
+        type: integer
+      content:
+        type: string
+      id:
+        type: integer
+    type: object
+  models.NotePostRequest:
+    properties:
+      category_id:
+        type: integer
+      content:
+        type: string
+    type: object
+  models.RegisterRequest:
+    properties:
+      email:
+        type: string
+      password:
+        type: string
+      username:
+        type: string
+    type: object
+  models.UpdatedResponse:
+    properties:
+      updated:
+        type: integer
+    type: object
+host: localhost:8080
+info:
+  contact: {}
+  description: A simple API for managing notes and categories.
+  title: Notes API
+  version: "1.0"
+paths:
+  /categories:
+    delete:
+      consumes:
+      - application/json
+      description: Delete one or more categories by their IDs.
+      parameters:
+      - description: List of category IDs to delete
+        in: body
+        name: ids
+        required: true
+        schema:
+          items:
+            type: integer
+          type: array
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Number of deleted categories
+          schema:
+            $ref: '#/definitions/models.DeletedResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Delete categories
+      tags:
+      - categories
+    get:
+      description: Get a list of categories with optional filters, pagination and
+        sorting.
+      parameters:
+      - description: Filter by category name (case-insensitive)
+        in: query
+        name: name
+        type: string
+      - description: 'Filter by created_at >= (format: 2006-01-02 15:04:05)'
+        in: query
+        name: created_at_start
+        type: string
+      - description: 'Filter by created_at <= (format: 2006-01-02 15:04:05)'
+        in: query
+        name: created_at_end
+        type: string
+      - description: 'Filter by updated_at >= (format: 2006-01-02 15:04:05)'
+        in: query
+        name: updated_at_start
+        type: string
+      - description: 'Filter by updated_at <= (format: 2006-01-02 15:04:05)'
+        in: query
+        name: updated_at_end
+        type: string
+      - description: Number of categories to return
+        in: query
+        name: limit
+        type: integer
+      - description: Number of categories to skip
+        in: query
+        name: offset
+        type: integer
+      - description: 'Sort by field (id, name, created_at, updated_at, default: updated_at)'
+        in: query
+        name: sort_by
+        type: string
+      - description: Sort order (ASC or DESC)
+        in: query
+        name: sort_order
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/models.MultipleCategoriesResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Get categories
+      tags:
+      - categories
+    patch:
+      consumes:
+      - application/json
+      description: Update name of one or multiple categories.
+      parameters:
+      - description: List of categories with updated data
+        in: body
+        name: categories
+        required: true
+        schema:
+          items:
+            $ref: '#/definitions/models.CategoryPatchRequest'
+          type: array
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Number of updated categories
+          schema:
+            $ref: '#/definitions/models.UpdatedResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Update categories
+      tags:
+      - categories
+    post:
+      consumes:
+      - application/json
+      description: Create one or more categories for the current user.
+      parameters:
+      - description: List of categories to create
+        in: body
+        name: categories
+        required: true
+        schema:
+          items:
+            $ref: '#/definitions/models.CategoryPostRequest'
+          type: array
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Number of inserted categories
+          schema:
+            $ref: '#/definitions/models.InsertedResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Create categories
+      tags:
+      - categories
+  /login:
+    post:
+      consumes:
+      - application/json
+      description: Authenticate user and return JWT token.
+      parameters:
+      - description: User login credentials
+        in: body
+        name: credentials
+        required: true
+        schema:
+          $ref: '#/definitions/models.LoginRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Authentication token
+          schema:
+            $ref: '#/definitions/models.LoginSuccessResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+      summary: Login user
+      tags:
+      - authentication
+  /notes:
+    delete:
+      consumes:
+      - application/json
+      description: Delete one or more notes by their IDs.
+      parameters:
+      - description: List of note IDs to delete
+        in: body
+        name: ids
+        required: true
+        schema:
+          items:
+            type: integer
+          type: array
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Number of deleted notes
+          schema:
+            $ref: '#/definitions/models.DeletedResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Delete notes
+      tags:
+      - notes
+    get:
+      description: Get a list of notes with optional filters, pagination and sorting.
+      parameters:
+      - description: Filter notes by content (case-insensitive)
+        in: query
+        name: content
+        type: string
+      - description: Filter by category ID
+        in: query
+        name: category_id
+        type: integer
+      - description: 'Filter by created_at >= (format: 2006-01-02 15:04:05)'
+        in: query
+        name: created_at_start
+        type: string
+      - description: 'Filter by created_at <= (format: 2006-01-02 15:04:05)'
+        in: query
+        name: created_at_end
+        type: string
+      - description: 'Filter by updated_at >= (format: 2006-01-02 15:04:05)'
+        in: query
+        name: updated_at_start
+        type: string
+      - description: 'Filter by updated_at <= (format: 2006-01-02 15:04:05)'
+        in: query
+        name: updated_at_end
+        type: string
+      - description: Number of notes to return
+        in: query
+        name: limit
+        type: integer
+      - description: Number of notes to skip
+        in: query
+        name: offset
+        type: integer
+      - description: 'Sort by column (id, content, created_at, updated_at, category_id,
+          default: updated_at)'
+        in: query
+        name: sort_by
+        type: string
+      - description: Sort order (ASC or DESC)
+        in: query
+        name: sort_order
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/models.MultipleNotesResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Get notes
+      tags:
+      - notes
+    patch:
+      consumes:
+      - application/json
+      description: Update content and/or category of one or multiple notes.
+      parameters:
+      - description: List of notes to update
+        in: body
+        name: notes
+        required: true
+        schema:
+          items:
+            $ref: '#/definitions/models.NotePatchRequest'
+          type: array
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Number of updated notes
+          schema:
+            $ref: '#/definitions/models.UpdatedResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Update notes
+      tags:
+      - notes
+    post:
+      consumes:
+      - application/json
+      description: Create one or more notes for the current user.
+      parameters:
+      - description: List of notes to create
+        in: body
+        name: notes
+        required: true
+        schema:
+          items:
+            $ref: '#/definitions/models.NotePostRequest'
+          type: array
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Number of inserted notes
+          schema:
+            $ref: '#/definitions/models.InsertedResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Create notes
+      tags:
+      - notes
+  /register:
+    post:
+      consumes:
+      - application/json
+      description: Register a new user account.
+      parameters:
+      - description: User registration data
+        in: body
+        name: user
+        required: true
+        schema:
+          $ref: '#/definitions/models.RegisterRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Registration success message
+          schema:
+            $ref: '#/definitions/models.MessageResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/models.ErrorsResponse'
+        "409":
+          description: Conflict
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+      summary: Register user
+      tags:
+      - authentication
+schemes:
+- http
+securityDefinitions:
+  BearerAuth:
+    in: header
+    name: Authorization
+    type: apiKey
+swagger: "2.0"

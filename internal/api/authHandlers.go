@@ -11,6 +11,17 @@ import (
 	"golang.org/x/crypto/bcrypt"
 )
 
+//	@Summary		Register user
+//	@Description	Register a new user account.
+//	@Tags			authentication
+//	@Accept			json
+//	@Produce		json
+//	@Param			user	body		models.RegisterRequest	true	"User registration data"
+//	@Success		201		{object}	models.MessageResponse	"Registration success message"
+//	@Failure		400		{object}	models.ErrorsResponse
+//	@Failure		409		{object}	models.ErrorResponse
+//	@Failure		500		{object}	models.ErrorResponse
+//	@Router			/register [post]
 func (s *APIServer) handleRegister(w http.ResponseWriter, r *http.Request) {
 	var user models.RegisterRequest
 	err := json.NewDecoder(r.Body).Decode(&user)
@@ -23,7 +34,7 @@ func (s *APIServer) handleRegister(w http.ResponseWriter, r *http.Request) {
 	user.Email = strings.ToLower(user.Email)
 
 	if errs := validation.ValidateInput(user); len(errs) > 0 {
-		sendError(w, http.StatusBadRequest, errs)
+		sendErrors(w, http.StatusBadRequest, errs)
 		return
 	}
 
@@ -40,9 +51,20 @@ func (s *APIServer) handleRegister(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	sendResponse(w, http.StatusCreated, map[string]string{"message": "user registered successfully"})
+	sendResponse(w, http.StatusCreated, models.MessageResponse{Message: "user registered successfully"})
 }
 
+//	@Summary		Login user
+//	@Description	Authenticate user and return JWT token.
+//	@Tags			authentication
+//	@Accept			json
+//	@Produce		json
+//	@Param			credentials	body		models.LoginRequest			true	"User login credentials"
+//	@Success		200			{object}	models.LoginSuccessResponse	"Authentication token"
+//	@Failure		400			{object}	models.ErrorResponse
+//	@Failure		401			{object}	models.ErrorResponse
+//	@Failure		500			{object}	models.ErrorResponse
+//	@Router			/login [post]
 func (s *APIServer) handleLogin(w http.ResponseWriter, r *http.Request) {
 	var creds models.LoginRequest
 	err := json.NewDecoder(r.Body).Decode(&creds)
@@ -77,5 +99,5 @@ func (s *APIServer) handleLogin(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	sendResponse(w, http.StatusOK, map[string]string{"token": token})
+	sendResponse(w, http.StatusOK, models.LoginSuccessResponse{Token: token})
 }

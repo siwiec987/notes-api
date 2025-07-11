@@ -13,6 +13,25 @@ import (
 	"github.com/siwiec987/notes-api/internal/models"
 )
 
+//	@Summary		Get notes
+//	@Description	Get a list of notes with optional filters, pagination and sorting.
+//	@Tags			notes
+//	@Produce		json
+//	@Param			content				query		string	false	"Filter notes by content (case-insensitive)"
+//	@Param			category_id			query		int		false	"Filter by category ID"
+//	@Param			created_at_start	query		string	false	"Filter by created_at >= (format: 2006-01-02 15:04:05)"
+//	@Param			created_at_end		query		string	false	"Filter by created_at <= (format: 2006-01-02 15:04:05)"
+//	@Param			updated_at_start	query		string	false	"Filter by updated_at >= (format: 2006-01-02 15:04:05)"
+//	@Param			updated_at_end		query		string	false	"Filter by updated_at <= (format: 2006-01-02 15:04:05)"
+//	@Param			limit				query		int		false	"Number of notes to return"
+//	@Param			offset				query		int		false	"Number of notes to skip"
+//	@Param			sort_by				query		string	false	"Sort by column (id, content, created_at, updated_at, category_id, default: updated_at)"
+//	@Param			sort_order			query		string	false	"Sort order (ASC or DESC)"
+//	@Success		200					{object}	models.MultipleNotesResponse
+//	@Failure		400					{object}	models.ErrorResponse
+//	@Failure		500					{object}	models.ErrorResponse
+//	@Security		BearerAuth
+//	@Router			/notes [get]
 func (s *APIServer) handleGetNotes(w http.ResponseWriter, r *http.Request) {
 	userID := getUserID(r)
 
@@ -92,9 +111,20 @@ func (s *APIServer) handleGetNotes(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	sendResponse(w, http.StatusOK, map[string]any{"notes": notes})
+	sendResponse(w, http.StatusOK, models.MultipleNotesResponse{Notes: notes})
 }
 
+//	@Summary		Create notes
+//	@Description	Create one or more notes for the current user.
+//	@Tags			notes
+//	@Accept			json
+//	@Produce		json
+//	@Param			notes	body		[]models.NotePostRequest	true	"List of notes to create"
+//	@Success		201		{object}	models.InsertedResponse		"Number of inserted notes"
+//	@Failure		400		{object}	models.ErrorResponse
+//	@Failure		500		{object}	models.ErrorResponse
+//	@Security		BearerAuth
+//	@Router			/notes [post]
 func (s *APIServer) handlePostNotes(w http.ResponseWriter, r *http.Request) {
 	userID := getUserID(r)
 	var notes []models.NotePostRequest
@@ -125,9 +155,21 @@ func (s *APIServer) handlePostNotes(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	sendResponse(w, http.StatusCreated, map[string]any{"inserted": len(notes)})
+	sendResponse(w, http.StatusCreated, models.InsertedResponse{Inserted: len(notes)})
 }
 
+//	@Summary		Delete notes
+//	@Description	Delete one or more notes by their IDs.
+//	@Tags			notes
+//	@Accept			json
+//	@Produce		json
+//	@Param			ids	body		[]int					true	"List of note IDs to delete"
+//	@Success		200	{object}	models.DeletedResponse	"Number of deleted notes"
+//	@Failure		400	{object}	models.ErrorResponse
+//	@Failure		404	{object}	models.ErrorResponse
+//	@Failure		500	{object}	models.ErrorResponse
+//	@Security		BearerAuth
+//	@Router			/notes [delete]
 func (s *APIServer) handleDeleteNotes(w http.ResponseWriter, r *http.Request) {
 	userID := getUserID(r)
 
@@ -160,7 +202,7 @@ func (s *APIServer) handleDeleteNotes(w http.ResponseWriter, r *http.Request) {
 	err = database.WithTransaction(s.db, func(tx *sql.Tx) error {
 		res, err = tx.Exec(query, args...)
 		if err != nil {
-			return errors.New("failed to delete note(s)")
+			return errors.New("failed to delete notes")
 		}
 
 		return nil
@@ -179,9 +221,21 @@ func (s *APIServer) handleDeleteNotes(w http.ResponseWriter, r *http.Request) {
 		sendError(w, http.StatusInternalServerError, "could not determine affected rows")
 		return
 	}
-	sendResponse(w, http.StatusOK, map[string]any{"deleted": affected})
+	sendResponse(w, http.StatusOK, models.DeletedResponse{Deleted: int(affected)})
 }
 
+//	@Summary		Update notes
+//	@Description	Update content and/or category of one or multiple notes.
+//	@Tags			notes
+//	@Accept			json
+//	@Produce		json
+//	@Param			notes	body		[]models.NotePatchRequest	true	"List of notes to update"
+//	@Success		200		{object}	models.UpdatedResponse		"Number of updated notes"
+//	@Failure		400		{object}	models.ErrorResponse
+//	@Failure		404		{object}	models.ErrorResponse
+//	@Failure		500		{object}	models.ErrorResponse
+//	@Security		BearerAuth
+//	@Router			/notes [patch]
 func (s *APIServer) handlePatchNotes(w http.ResponseWriter, r *http.Request) {
 	userID := getUserID(r)
 
@@ -252,5 +306,5 @@ func (s *APIServer) handlePatchNotes(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	sendResponse(w, http.StatusOK, map[string]any{"updated": len(notes)})
+	sendResponse(w, http.StatusOK, models.UpdatedResponse{Updated: len(notes)})
 }

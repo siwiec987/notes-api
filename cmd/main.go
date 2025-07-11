@@ -1,3 +1,12 @@
+//	@title						Notes API
+//	@version					1.0
+//	@description				A simple API for managing notes and categories.
+//	@host						localhost:8080
+//	@BasePath					/
+//	@schemes					http
+//	@securityDefinitions.apikey	BearerAuth
+//	@in							header
+//	@name						Authorization
 package main
 
 import (
