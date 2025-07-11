@@ -9,6 +9,8 @@ import (
 	"slices"
 	"strconv"
 	"time"
+
+	"github.com/siwiec987/notes-api/internal/models"
 )
 
 func sendResponse(w http.ResponseWriter, status int, v any) {
@@ -20,15 +22,14 @@ func sendResponse(w http.ResponseWriter, status int, v any) {
 	}
 }
 
-func sendError(w http.ResponseWriter, status int, msg any) {
+func sendError(w http.ResponseWriter, status int, msg string) {
 	log.Printf("ERROR %d: %v", status, msg)
+	sendResponse(w, status, models.ErrorResponse{Error: msg})
+}
 
-	switch msg.(type) {
-	case string:
-		sendResponse(w, status, map[string]any{"error": msg})
-	default:
-		sendResponse(w, status, map[string]any{"errors": msg})
-	}
+func sendErrors(w http.ResponseWriter, status int, errs map[string][]string) {
+	log.Printf("ERROR %d: %v", status, errs)
+	sendResponse(w, status, models.ErrorsResponse{Errors: errs})
 }
 
 func getUserID(r *http.Request) int {
