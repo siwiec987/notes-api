@@ -43,11 +43,12 @@ type NotePatchRequest struct {
 }
 
 type Note struct {
-	ID        int       `json:"id"`
-	Content   string    `json:"content"`
-	CreatedAt time.Time `json:"created_at"`
-	UpdatedAt time.Time `json:"updated_at"`
-	Category  Category  `json:"category"`
+	ID			 int        `json:"id"`
+	Content		 string     `json:"content"`
+	CreatedAt	 time.Time  `json:"created_at"`
+	UpdatedAt	 time.Time  `json:"updated_at"`
+	CategoryID	 int		`json:"category_id"`
+	CategoryName string		`json:"category_name"`
 }
 
 type Category struct {

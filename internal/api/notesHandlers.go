@@ -97,7 +97,7 @@ func (s *APIServer) handleGetNotes(w http.ResponseWriter, r *http.Request) {
 	var notes []models.Note
 	for rows.Next() {
 		var note models.Note
-		err := rows.Scan(&note.ID, &note.Content, &note.CreatedAt, &note.UpdatedAt, &note.Category.ID, &note.Category.Name)
+		err := rows.Scan(&note.ID, &note.Content, &note.CreatedAt, &note.UpdatedAt, &note.CategoryID, &note.CategoryName)
 		if err != nil {
 			sendError(w, http.StatusInternalServerError, "failed to fetch notes")
 			return

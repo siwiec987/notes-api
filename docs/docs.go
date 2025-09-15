@@ -775,8 +775,11 @@ const docTemplate = `{
         "models.Note": {
             "type": "object",
             "properties": {
-                "category": {
-                    "$ref": "#/definitions/models.Category"
+                "category_id": {
+                    "type": "integer"
+                },
+                "category_name": {
+                    "type": "string"
                 },
                 "content": {
                     "type": "string"
